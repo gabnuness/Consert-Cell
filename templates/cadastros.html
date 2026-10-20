@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Cadastros de Apoio - Consert Cell{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <h3 class="fw-bold mb-1">Cadastros de Apoio</h3>
+  <p class="text-muted mb-0 small">Gerenciamento de colaboradores, setores e fornecedores / assistências técnicas.</p>
+</div>
+
+<div class="row g-4">
+  <!-- Coluna 1: Colaboradores e Setores -->
+  <div class="col-12 col-lg-6">
+    <div class="card-table mb-4">
+      <div class="card-header bg-light">
+        <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-person-plus-fill me-2"></i>Novo Colaborador</h6>
+      </div>
+      <div class="p-3">
+        <form action="{{ url_for('salvar_colaborador') }}" method="POST">
+          <div class="row g-2">
+            <div class="col-md-5">
+              <label class="form-label">Nome Completo</label>
+              <input type="text" name="nome" class="form-control" placeholder="Ex: João Souza" required>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Setor / Departamento</label>
+              <input type="text" name="setor" class="form-control" placeholder="Ex: Logística, Vendas" required>
+            </div>
+            <div class="col-md-3">
+              <label class="form-label">Matrícula</label>
+              <input type="text" name="matricula" class="form-control" placeholder="Opcional">
+            </div>
+            <div class="col-12 text-end mt-3">
+              <button type="submit" class="btn btn-primary btn-sm">Adicionar Colaborador</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tabela Colaboradores -->
+    <div class="card-table">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0"><i class="bi bi-people-fill text-primary me-2"></i>Colaboradores Cadastrados ({{ colaboradores|length }})</h6>
+      </div>
+      <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Setor</th>
+              <th>Matrícula</th>
+              <th>Aparelhos Atuais</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in colaboradores %}
+            <tr>
+              <td><strong>{{ c.nome }}</strong></td>
+              <td><span class="badge bg-light text-secondary border">{{ c.setor }}</span></td>
+              <td>{{ c.matricula or '-' }}</td>
+              <td>
+                <span class="badge bg-light text-primary border">
+                  {{ c.dispositivos|length }} dispositivo(s)
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">Nenhum colaborador cadastrado.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Coluna 2: Fornecedores e Assistências -->
+  <div class="col-12 col-lg-6">
+    <div class="card-table mb-4">
+      <div class="card-header bg-light">
+        <h6 class="fw-bold mb-0 text-primary"><i class="bi bi-building-add me-2"></i>Novo Fornecedor / Assistência</h6>
+      </div>
+      <div class="p-3">
+        <form action="{{ url_for('salvar_fornecedor') }}" method="POST">
+          <div class="row g-2">
+            <div class="col-md-6">
+              <label class="form-label">Nome da Empresa / Fantasia</label>
+              <input type="text" name="nome" class="form-control" placeholder="Ex: MegaCell Assistência" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Tipo de Estabelecimento</label>
+              <select name="tipo" class="form-select">
+                <option value="assistencia">Assistência Técnica de Reparo</option>
+                <option value="loja">Distribuidora / Loja de Acessórios</option>
+                <option value="outro">Outro Fornecedor</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Contato (WhatsApp / Fone)</label>
+              <input type="text" name="contato" class="form-control" placeholder="(00) 00000-0000">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">CNPJ (Opcional)</label>
+              <input type="text" name="cnpj" class="form-control" placeholder="00.000.000/0000-00">
+            </div>
+            <div class="col-12 text-end mt-3">
+              <button type="submit" class="btn btn-primary btn-sm">Cadastrar Fornecedor</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Tabela Fornecedores -->
+    <div class="card-table">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0"><i class="bi bi-buildings text-primary me-2"></i>Fornecedores Cadastrados ({{ fornecedores|length }})</h6>
+      </div>
+      <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>Fornecedor</th>
+              <th>Tipo</th>
+              <th>Contato</th>
+              <th>CNPJ</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for f in fornecedores %}
+            <tr>
+              <td><strong>{{ f.nome }}</strong></td>
+              <td>
+                <span class="badge {% if f.tipo == 'assistencia' %}bg-primary-subtle text-primary border border-primary{% else %}bg-light text-secondary border{% endif %}">
+                  {{ f.tipo|capitalize }}
+                </span>
+              </td>
+              <td>{{ f.contato or '-' }}</td>
+              <td>{{ f.cnpj or '-' }}</td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center py-4 text-muted">Nenhum fornecedor cadastrado.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

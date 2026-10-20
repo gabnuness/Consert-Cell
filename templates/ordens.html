@@ -1,0 +1,368 @@
+{% extends "base.html" %}
+
+{% block title %}Ordens de Serviço - Consert Cell{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold mb-1">Ordens de Assistência Técnica</h3>
+    <p class="text-muted mb-0 small">Acompanhamento de aparelhos enviados para conserto, orçamentos, diagnósticos e custos.</p>
+  </div>
+  <button type="button" class="btn btn-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalNovaOS">
+    <i class="bi bi-plus-lg"></i> Abrir Nova OS
+  </button>
+</div>
+
+<!-- Filtros Rápidos de Status -->
+<div class="card-table p-3 mb-4">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="fw-semibold text-muted small me-2">Filtrar por Status:</span>
+    <a href="{{ url_for('ordens') }}" class="btn btn-sm {% if not filtro_status %}btn-primary{% else %}btn-outline-custom{% endif %}">Todos</a>
+    <a href="{{ url_for('ordens', status='enviado') }}" class="btn btn-sm {% if filtro_status == 'enviado' %}btn-primary{% else %}btn-outline-custom{% endif %}">Enviados</a>
+    <a href="{{ url_for('ordens', status='em_analise') }}" class="btn btn-sm {% if filtro_status == 'em_analise' %}btn-primary{% else %}btn-outline-custom{% endif %}">Em Análise</a>
+    <a href="{{ url_for('ordens', status='em_reparo') }}" class="btn btn-sm {% if filtro_status == 'em_reparo' %}btn-primary{% else %}btn-outline-custom{% endif %}">Em Reparo</a>
+    <a href="{{ url_for('ordens', status='pronto') }}" class="btn btn-sm {% if filtro_status == 'pronto' %}btn-primary{% else %}btn-outline-custom{% endif %}">Prontos</a>
+    <a href="{{ url_for('ordens', status='devolvido') }}" class="btn btn-sm {% if filtro_status == 'devolvido' %}btn-primary{% else %}btn-outline-custom{% endif %}">Devolvidos</a>
+    <a href="{{ url_for('ordens', status='sem_conserto') }}" class="btn btn-sm {% if filtro_status == 'sem_conserto' %}btn-primary{% else %}btn-outline-custom{% endif %}">Sem Conserto</a>
+  </div>
+</div>
+
+<!-- Tabela de Ordens de Serviço -->
+<div class="card-table">
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>OS / Data</th>
+          <th>Dispositivo</th>
+          <th>Assistência</th>
+          <th>Defeito</th>
+          <th>Dias Fora</th>
+          <th>Valores</th>
+          <th>Diagnóstico / Resp.</th>
+          <th>Status</th>
+          <th class="text-end">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in ordens %}
+        <tr>
+          <td>
+            <strong class="d-block text-primary">#{{ o.id }}</strong>
+            <span class="text-muted small">{{ o.data_envio|data_br }}</span>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}</div>
+            <div class="text-muted small font-monospace">{{ o.dispositivo.identificador }}</div>
+            {% if o.colaborador %}
+              <div class="small text-secondary"><i class="bi bi-person"></i> {{ o.colaborador.nome }}</div>
+            {% endif %}
+          </td>
+          <td>
+            <span class="fw-medium">{{ o.fornecedor.nome }}</span>
+            {% if o.fornecedor.contato %}
+              <div class="text-muted small">{{ o.fornecedor.contato }}</div>
+            {% endif %}
+          </td>
+          <td style="max-width: 200px;">
+            <div class="text-truncate" title="{{ o.defeito }}">{{ o.defeito }}</div>
+          </td>
+          <td>
+            {% if o.status not in ['devolvido', 'sem_conserto'] %}
+              <span class="badge {% if o.dias_fora >= 15 %}bg-danger{% elif o.dias_fora >= 7 %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}">
+                <i class="bi bi-clock"></i> {{ o.dias_fora }} dias
+              </span>
+            {% else %}
+              <span class="text-muted small">Ficou {{ o.dias_fora }} dias</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if o.valor_final %}
+              <div class="fw-bold">{{ o.valor_final|moeda }}</div>
+              {% if o.valor_colaborador > 0 %}
+                <div class="small text-danger">Vale: {{ o.valor_colaborador|moeda }}</div>
+              {% endif %}
+            {% elif o.valor_orcado %}
+              <div class="text-muted small">Orç: {{ o.valor_orcado|moeda }}</div>
+            {% else %}
+              <span class="text-muted small">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if o.causa %}
+              <div class="small fw-semibold">{{ o.causa|replace('_', ' ')|capitalize }}</div>
+              <span class="badge {% if o.responsavel_custo == 'empresa' %}bg-light text-primary border{% elif o.responsavel_custo == 'colaborador' %}bg-danger-subtle text-danger border border-danger{% else %}bg-warning-subtle text-warning border border-warning{% endif %} small">
+                {{ o.responsavel_custo|capitalize }}
+              </span>
+            {% else %}
+              <span class="text-muted small">Aguardando laudo</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge-status badge-{{ o.status }}">
+              {{ o.status|replace('_', ' ')|capitalize }}
+            </span>
+          </td>
+          <td class="text-end">
+            {% if o.status not in ['devolvido', 'sem_conserto'] %}
+              <div class="d-flex justify-content-end gap-1">
+                <button type="button" class="btn btn-sm btn-outline-custom btn-status"
+                  data-id="{{ o.id }}"
+                  data-status="{{ o.status }}"
+                  data-orcado="{{ o.valor_orcado }}"
+                  data-bs-toggle="modal" data-bs-target="#modalStatusOS" title="Atualizar Status">
+                  <i class="bi bi-arrow-repeat"></i>
+                </button>
+                <button type="button" class="btn btn-sm btn-success btn-concluir"
+                  data-id="{{ o.id }}"
+                  data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
+                  data-colab="{{ o.colaborador.nome if o.colaborador else '' }}"
+                  data-orcado="{{ o.valor_orcado }}"
+                  data-bs-toggle="modal" data-bs-target="#modalConcluirOS">
+                  <i class="bi bi-check2-circle"></i> Concluir
+                </button>
+              </div>
+            {% else %}
+              <a href="{{ url_for('historico_dispositivo', id=o.dispositivo.id) }}" class="btn btn-sm btn-outline-custom" title="Ver Histórico">
+                <i class="bi bi-eye"></i>
+              </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-center py-5 text-muted">
+            <i class="bi bi-clipboard-x fs-1 d-block mb-2 text-secondary"></i>
+            Nenhuma ordem de assistência encontrada.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Abrir Nova OS -->
+<div class="modal fade" id="modalNovaOS" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form action="{{ url_for('ordens') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold"><i class="bi bi-tools text-primary me-2"></i>Abrir Nova Ordem de Assistência</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label">Dispositivo para Manutenção</label>
+              <select name="dispositivo_id" class="form-select" required>
+                <option value="">Selecione o aparelho...</option>
+                {% for d in dispositivos %}
+                  <option value="{{ d.id }}">
+                    {{ d.marca }} {{ d.modelo }} ({{ d.identificador }}) - Resp: {{ d.colaborador.nome if d.colaborador else 'TI' }}
+                  </option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Assistência Técnica (Fornecedor)</label>
+              <select name="fornecedor_id" class="form-select" required>
+                <option value="">Selecione a assistência...</option>
+                {% for f in fornecedores %}
+                  <option value="{{ f.id }}">{{ f.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Data de Envio</label>
+              <input type="date" name="data_envio" class="form-control" value="{{ hoje }}">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Valor Pré-Orçado (R$) - Opcional</label>
+              <input type="number" step="0.01" name="valor_orcado" class="form-control" placeholder="0,00">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Defeito Relatado / Sintoma</label>
+              <textarea name="defeito" class="form-control" rows="3" placeholder="Descreva detalhadamente o que aconteceu com o aparelho..." required></textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Observações Internas (Opcional)</label>
+              <input type="text" name="observacoes" class="form-control" placeholder="Ex: Deixou com carregador, solicitou urgência...">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Abrir Ordem de Serviço</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Atualizar Status da OS -->
+<div class="modal fade" id="modalStatusOS" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="formStatusOS" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Atualizar Andamento da OS</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Status Atual</label>
+            <select name="status" id="status_os_select" class="form-select" required>
+              <option value="enviado">Enviado</option>
+              <option value="em_analise">Em Análise</option>
+              <option value="orcamento_aprovado">Orçamento Aprovado</option>
+              <option value="em_reparo">Em Reparo</option>
+              <option value="pronto">Pronto para Retirada</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Valor Orçado Atualizado (R$)</label>
+            <input type="number" step="0.01" name="valor_orcado" id="status_os_valor" class="form-control">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Fechar</button>
+          <button type="submit" class="btn btn-primary">Salvar Status</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Concluir OS e Lançar Custos / Vales -->
+<div class="modal fade" id="modalConcluirOS" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form id="formConcluirOS" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold"><i class="bi bi-check2-circle text-success me-2"></i>Concluir / Devolver Ordem de Serviço</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-light border p-3 mb-3">
+            <div><strong>Aparelho:</strong> <span id="concluir_disp"></span></div>
+            <div><strong>Colaborador:</strong> <span id="concluir_colab"></span></div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label">Resultado do Conserto</label>
+              <select name="status_final" class="form-select" required>
+                <option value="devolvido">Reparado com Sucesso (Devolvido)</option>
+                <option value="sem_conserto">Sem Conserto (Baixar Aparelho)</option>
+              </select>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Data de Retorno</label>
+              <input type="date" name="data_retorno" class="form-control" value="{{ hoje }}">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Valor Final do Serviço (R$)</label>
+              <input type="number" step="0.01" name="valor_final" id="concluir_valor_final" class="form-control" required placeholder="0,00">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Causa do Defeito (Classificação TI)</label>
+              <select name="causa" id="concluir_causa" class="form-select" required onchange="ajustarResponsabilidade()">
+                <option value="desgaste_natural">Desgaste Natural do Uso</option>
+                <option value="defeito_fabricacao">Defeito de Fabricação / Garantia</option>
+                <option value="mau_uso">Mau Uso / Danificado pelo Colaborador</option>
+                <option value="acidente_queda">Acidente / Queda</option>
+                <option value="outro">Outro Motivo</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Quem arca com o custo?</label>
+              <select name="responsavel_custo" id="concluir_responsavel" class="form-select" required onchange="toggleValorMisto()">
+                <option value="empresa">Empresa arca com 100%</option>
+                <option value="colaborador">Colaborador arca com 100% (Gera Vale)</option>
+                <option value="misto">Divisão Mista (Empresa + Vale Parcial)</option>
+              </select>
+            </div>
+
+            <div class="col-md-6" id="div_valor_colaborador" style="display: none;">
+              <label class="form-label text-danger fw-bold">Valor Repassado ao Colaborador (R$)</label>
+              <input type="number" step="0.01" name="valor_colaborador" id="concluir_valor_colab" class="form-control" placeholder="0,00">
+              <div class="form-text">Será lançado como Vale pendente para desconto em folha pelo RH.</div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Garantia do Serviço (Dias)</label>
+              <input type="number" name="garantia_dias" class="form-control" value="90">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Laudo Técnico da Assistência / Descrição do Reparo</label>
+              <textarea name="laudo" class="form-control" rows="2" placeholder="Ex: Substituição do conector de carga e bateria..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Confirmar Conclusão</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Script para modal de status
+  document.querySelectorAll('.btn-status').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      document.getElementById('formStatusOS').action = `/ordens/${id}/atualizar-status`;
+      document.getElementById('status_os_select').value = this.getAttribute('data-status');
+      document.getElementById('status_os_valor').value = this.getAttribute('data-orcado') || '';
+    });
+  });
+
+  // Script para modal de conclusão
+  document.querySelectorAll('.btn-concluir').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      document.getElementById('formConcluirOS').action = `/ordens/${id}/concluir`;
+      document.getElementById('concluir_disp').textContent = this.getAttribute('data-disp');
+      document.getElementById('concluir_colab').textContent = this.getAttribute('data-colab') || 'Nenhum vinculado';
+      document.getElementById('concluir_valor_final').value = this.getAttribute('data-orcado') || '';
+      ajustarResponsabilidade();
+    });
+  });
+
+  function ajustarResponsabilidade() {
+    const causa = document.getElementById('concluir_causa').value;
+    const respSelect = document.getElementById('concluir_responsavel');
+    if (causa === 'mau_uso') {
+      respSelect.value = 'colaborador';
+    } else {
+      respSelect.value = 'empresa';
+    }
+    toggleValorMisto();
+  }
+
+  function toggleValorMisto() {
+    const resp = document.getElementById('concluir_responsavel').value;
+    const divColab = document.getElementById('div_valor_colaborador');
+    if (resp === 'misto' || resp === 'colaborador') {
+      divColab.style.display = 'block';
+      if (resp === 'colaborador') {
+        document.getElementById('concluir_valor_colab').value = document.getElementById('concluir_valor_final').value;
+      }
+    } else {
+      divColab.style.display = 'none';
+      document.getElementById('concluir_valor_colab').value = '0';
+    }
+  }
+</script>
+{% endblock %}

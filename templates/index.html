@@ -1,0 +1,296 @@
+{% extends "base.html" %}
+
+{% block title %}Painel Geral - Consert Cell{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold mb-1">Painel Geral de Controle</h3>
+    <p class="text-muted mb-0 small">Visão integrada de ordens em andamento, custos da empresa, vales e estoque.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('ordens') }}" class="btn btn-primary d-flex align-items-center gap-1">
+      <i class="bi bi-plus-circle"></i> Abrir Nova OS
+    </a>
+    <a href="{{ url_for('acessorios') }}" class="btn btn-outline-custom d-flex align-items-center gap-1">
+      <i class="bi bi-box-arrow-up-right"></i> Saída de Acessório
+    </a>
+  </div>
+</div>
+
+<!-- Banner de Inicialização Rápida se não houver dados -->
+{% if total_na_assistencia == 0 and gasto_mes_total == 0 and valor_total_estoque == 0 %}
+<div class="alert alert-info border-0 shadow-sm d-flex flex-wrap align-items-center justify-content-between p-3 mb-4 rounded-3">
+  <div class="d-flex align-items-center gap-3">
+    <i class="bi bi-rocket-takeoff-fill fs-2 text-primary"></i>
+    <div>
+      <h6 class="fw-bold mb-1">Bem-vindo ao Consert Cell!</h6>
+      <span class="small">Seu banco de dados está vazio. Deseja carregar alguns dados fictícios de teste para ver o sistema em funcionamento?</span>
+    </div>
+  </div>
+  <a href="{{ url_for('carregar_dados_exemplo') }}" class="btn btn-primary btn-sm mt-2 mt-md-0">
+    <i class="bi bi-database-fill-add"></i> Carregar Dados de Exemplo
+  </a>
+</div>
+{% endif %}
+
+<!-- Cards KPI Principais -->
+<div class="row g-3 mb-4">
+  <!-- Card 1: Na Assistência -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="metric-label">Na Assistência</span>
+        <div class="icon-box bg-danger-subtle text-danger">
+          <i class="bi bi-tools"></i>
+        </div>
+      </div>
+      <div class="metric-val text-danger">{{ total_na_assistencia }}</div>
+      <div class="mt-2 text-muted small">
+        {% if os_atrasadas_criticas|length > 0 %}
+          <span class="text-danger fw-semibold"><i class="bi bi-exclamation-triangle"></i> {{ os_atrasadas_criticas|length }} aparelhos há +15 dias</span>
+        {% elif os_atrasadas_alerta|length > 0 %}
+          <span class="text-warning fw-semibold"><i class="bi bi-clock-history"></i> {{ os_atrasadas_alerta|length }} aparelhos há +7 dias</span>
+        {% else %}
+          <span class="text-success"><i class="bi bi-check-circle"></i> Nenhum aparelho em atraso</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 2: Gasto do Mês (Empresa) -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="metric-label">Gasto do Mês (Empresa)</span>
+        <div class="icon-box bg-primary-subtle text-primary">
+          <i class="bi bi-cash-stack"></i>
+        </div>
+      </div>
+      <div class="metric-val text-primary">{{ gasto_mes_empresa|moeda }}</div>
+      <div class="mt-2 text-muted small">
+        <span>Total bruto registrado: {{ gasto_mes_total|moeda }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 3: Vales RH -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="metric-label">Vales a Descontar (RH)</span>
+        <div class="icon-box bg-warning-subtle text-warning">
+          <i class="bi bi-receipt"></i>
+        </div>
+      </div>
+      <div class="metric-val text-warning">{{ total_vales_valor|moeda }}</div>
+      <div class="mt-2 text-muted small">
+        <span>{{ total_vales_qtd }} vales pendentes/emitidos</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Card 4: Estoque Crítico -->
+  <div class="col-12 col-sm-6 col-xl-3">
+    <div class="metric-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <span class="metric-label">Estoque Crítico</span>
+        <div class="icon-box bg-info-subtle text-info">
+          <i class="bi bi-box-seam"></i>
+        </div>
+      </div>
+      <div class="metric-val {% if itens_baixo_estoque|length > 0 %}text-danger{% else %}text-success{% endif %}">
+        {{ itens_baixo_estoque|length }}
+      </div>
+      <div class="mt-2 text-muted small">
+        <span>Valor em estoque: {{ valor_total_estoque|moeda }}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Seção de Alertas e Notificações Relevantes -->
+{% if os_atrasadas_criticas or aparelhos_criticos or itens_baixo_estoque %}
+<div class="row g-3 mb-4">
+  {% if os_atrasadas_criticas %}
+  <div class="col-12 col-md-4">
+    <div class="custom-alert custom-alert-danger">
+      <i class="bi bi-exclamation-octagon-fill fs-4 mt-1"></i>
+      <div>
+        <strong class="d-block">Aparelhos parados há +15 dias:</strong>
+        <ul class="mb-0 ps-3 small mt-1">
+          {% for o in os_atrasadas_criticas %}
+            <li>OS #{{ o.id }} - {{ o.dispositivo.marca if o.dispositivo else 'Aparelho' }} {{ o.dispositivo.modelo if o.dispositivo else '' }} ({{ o.dias_fora }} dias fora)</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if aparelhos_criticos %}
+  <div class="col-12 col-md-4">
+    <div class="custom-alert custom-alert-warning">
+      <i class="bi bi-fire fs-4 mt-1"></i>
+      <div>
+        <strong class="d-block">Custo Crítico (Reparo > 50% Compra):</strong>
+        <ul class="mb-0 ps-3 small mt-1">
+          {% for d in aparelhos_criticos %}
+            <li>{{ d.marca }} {{ d.modelo }} ({{ d.percentual_custo_aquisicao }}% do valor gasto em consertos)</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if itens_baixo_estoque %}
+  <div class="col-12 col-md-4">
+    <div class="custom-alert custom-alert-warning">
+      <i class="bi bi-cart-plus fs-4 mt-1"></i>
+      <div>
+        <strong class="d-block">Reposição de Estoque Necessária:</strong>
+        <ul class="mb-0 ps-3 small mt-1">
+          {% for a in itens_baixo_estoque %}
+            <li>{{ a.nome }} (Saldo: <strong>{{ a.estoque_atual }}</strong> / Mínimo: {{ a.estoque_minimo }})</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<!-- Gráfico de Gastos e Tabela de OS Recentes -->
+<div class="row g-4">
+  <!-- Gráfico Histórico -->
+  <div class="col-12 col-lg-5">
+    <div class="card-table h-100 p-3">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h6 class="fw-bold mb-0"><i class="bi bi-graph-up text-primary me-2"></i>Evolução de Gastos da Empresa</h6>
+        <span class="badge bg-light text-secondary border">Últimos 6 meses</span>
+      </div>
+      <div style="height: 280px; position: relative;">
+        <!-- Canvas com os dados embutidos via data-attributes para evitar erros no linter JS do VS Code -->
+        <canvas id="chartGastos" 
+                data-labels='{{ chart_labels | tojson }}' 
+                data-values='{{ chart_values | tojson }}'></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tabela de OS Recentes -->
+  <div class="col-12 col-lg-7">
+    <div class="card-table">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h6 class="fw-bold mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Ordens de Serviço Recentes</h6>
+        <a href="{{ url_for('ordens') }}" class="btn btn-sm btn-link text-decoration-none">Ver todas &rarr;</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0 align-middle">
+          <thead>
+            <tr>
+              <th>OS</th>
+              <th>Dispositivo</th>
+              <th>Fornecedor</th>
+              <th>Status</th>
+              <th>Dias Fora</th>
+              <th>Valor Final</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for o in os_recentes %}
+            <tr>
+              <td><strong>#{{ o.id }}</strong></td>
+              <td>
+                <div class="fw-semibold">{{ o.dispositivo.marca if o.dispositivo else 'Dispositivo' }} {{ o.dispositivo.modelo if o.dispositivo else '' }}</div>
+                <div class="text-muted small">{{ o.dispositivo.identificador if o.dispositivo else '-' }}</div>
+              </td>
+              <td>{{ o.fornecedor.nome if o.fornecedor else '-' }}</td>
+              <td>
+                <span class="badge-status badge-{{ o.status }}">
+                  {{ o.status|replace('_', ' ')|capitalize }}
+                </span>
+              </td>
+              <td>
+                {% if o.status not in ['devolvido', 'sem_conserto'] %}
+                  <span class="badge {% if o.dias_fora >= 15 %}bg-danger{% elif o.dias_fora >= 7 %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}">
+                    {{ o.dias_fora }} dias
+                  </span>
+                {% else %}
+                  <span class="text-muted small">{{ o.dias_fora }} dias</span>
+                {% endif %}
+              </td>
+              <td>
+                {% if o.valor_final %}
+                  <span class="fw-bold text-dark">{{ o.valor_final|moeda }}</span>
+                  {% if o.valor_colaborador and o.valor_colaborador > 0 %}
+                    <div class="small text-danger">(Vale: {{ o.valor_colaborador|moeda }})</div>
+                  {% endif %}
+                {% else %}
+                  <span class="text-muted small">Orç: {{ o.valor_orcado|moeda }}</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="text-center py-4 text-muted">Nenhuma ordem de assistência registrada ainda.</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Lê os dados através dos atributos data-*, eliminando marcações de erro de sintaxe no editor
+  const canvas = document.getElementById('chartGastos');
+  if (canvas) {
+    const rawLabels = canvas.getAttribute('data-labels') || '[]';
+    const rawValues = canvas.getAttribute('data-values') || '[]';
+    const labels = JSON.parse(rawLabels);
+    const dataValues = JSON.parse(rawValues);
+
+    const ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Gasto Empresa (R$)',
+          data: dataValues,
+          backgroundColor: '#3b82f6',
+          borderRadius: 6,
+          hoverBackgroundColor: '#1d4ed8'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              callback: function(value) {
+                return 'R$ ' + value;
+              }
+            },
+            grid: { color: '#f1f5f9' }
+          },
+          x: {
+            grid: { display: false }
+          }
+        }
+      }
+    });
+  }
+</script>
+{% endblock %}

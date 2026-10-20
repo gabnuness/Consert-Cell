@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Acessórios e Estoque - Consert Cell{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+  <div>
+    <h3 class="fw-bold mb-1">Controle de Estoque e Acessórios</h3>
+    <p class="text-muted mb-0 small">Películas, capas, carregadores, cabos e saídas com controle de reposição e vales.</p>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="button" class="btn btn-outline-custom d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalNovoAcessorio">
+      <i class="bi bi-plus-lg"></i> Novo Item
+    </button>
+    <button type="button" class="btn btn-outline-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalEntrada">
+      <i class="bi bi-box-arrow-in-down"></i> Entrada (Compra)
+    </button>
+    <button type="button" class="btn btn-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalSaida">
+      <i class="bi bi-box-arrow-up-right"></i> Saída (Entrega)
+    </button>
+  </div>
+</div>
+
+<!-- Tabela de Itens de Estoque -->
+<div class="card-table mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold mb-0"><i class="bi bi-boxes text-primary me-2"></i>Itens em Estoque</h6>
+    <span class="text-muted small">Total de itens: {{ acessorios|length }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Item / Acessório</th>
+          <th>Categoria</th>
+          <th>Compatibilidade</th>
+          <th>Estoque Atual</th>
+          <th>Mínimo</th>
+          <th>Custo Médio</th>
+          <th>Total em Estoque</th>
+          <th class="text-end">Ações Rápidas</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in acessorios %}
+        <tr>
+          <td>
+            <strong class="d-block">{{ a.nome }}</strong>
+            {% if a.is_estoque_baixo %}
+              <span class="badge bg-danger-subtle text-danger border border-danger small">
+                <i class="bi bi-exclamation-triangle-fill"></i> Reposição Urgente
+              </span>
+            {% endif %}
+          </td>
+          <td><span class="badge bg-light text-secondary border">{{ a.categoria }}</span></td>
+          <td><span class="text-muted small">{{ a.compatibilidade or 'Universal' }}</span></td>
+          <td>
+            <span class="fw-bold fs-6 {% if a.is_estoque_baixo %}text-danger{% else %}text-dark{% endif %}">
+              {{ a.estoque_atual }} un.
+            </span>
+          </td>
+          <td><span class="text-muted small">{{ a.estoque_minimo }} un.</span></td>
+          <td>{{ a.custo_medio|moeda }}</td>
+          <td><span class="fw-semibold text-primary">{{ a.valor_total_estoque|moeda }}</span></td>
+          <td class="text-end">
+            <div class="d-flex justify-content-end gap-1">
+              <button class="btn btn-sm btn-outline-primary btn-rapido-entrada" data-id="{{ a.id }}" data-bs-toggle="modal" data-bs-target="#modalEntrada" title="Comprar Mais">
+                <i class="bi bi-plus-lg"></i>
+              </button>
+              <button class="btn btn-sm btn-outline-success btn-rapido-saida" data-id="{{ a.id }}" data-bs-toggle="modal" data-bs-target="#modalSaida" title="Entregar Acessório">
+                <i class="bi bi-arrow-right"></i>
+              </button>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="8" class="text-center py-5 text-muted">
+            <i class="bi bi-box-seam fs-1 d-block mb-2 text-secondary"></i>
+            Nenhum acessório cadastrado ainda. Clique em "Novo Item" para começar.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Últimas Saídas / Entregas -->
+<div class="card-table">
+  <div class="card-header">
+    <h6 class="fw-bold mb-0"><i class="bi bi-clock-history text-primary me-2"></i>Histórico das Últimas Saídas</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Acessório</th>
+          <th>Quantidade</th>
+          <th>Colaborador</th>
+          <th>Motivo</th>
+          <th>Custo</th>
+          <th>Vale Gerado?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in ultimas_saidas %}
+        <tr>
+          <td>{{ s.data|data_br }}</td>
+          <td><strong>{{ s.acessorio.nome }}</strong></td>
+          <td>{{ s.quantidade }} un.</td>
+          <td>{{ s.colaborador.nome }} ({{ s.colaborador.setor }})</td>
+          <td><span class="badge bg-light text-secondary border">{{ s.motivo|capitalize }}</span></td>
+          <td>{{ s.custo_no_momento|moeda }}</td>
+          <td>
+            {% if s.gerou_vale %}
+              <span class="badge bg-danger-subtle text-danger border border-danger">Sim (Vale descontado)</span>
+            {% else %}
+              <span class="badge bg-light text-muted">Não (Empresa)</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted">Nenhuma saída de acessório registrada ainda.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Modal: Novo Acessório -->
+<div class="modal fade" id="modalNovoAcessorio" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('acessorios') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Cadastrar Novo Item de Acessório</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Nome / Descrição do Item</label>
+            <input type="text" name="nome" class="form-control" placeholder="Ex: Película 3D Galaxy A15" required>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Categoria</label>
+              <select name="categoria" class="form-select">
+                <option value="Pelicula">Película</option>
+                <option value="Capa">Capa / Case</option>
+                <option value="Carregador">Carregador</option>
+                <option value="Cabo">Cabo USB</option>
+                <option value="Fone">Fone de Ouvido</option>
+                <option value="Outro">Outro</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Compatibilidade</label>
+              <input type="text" name="compatibilidade" class="form-control" placeholder="Ex: Galaxy A15 / Universal">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-4">
+              <label class="form-label">Estoque Mínimo</label>
+              <input type="number" name="estoque_minimo" class="form-control" value="5" required>
+            </div>
+            <div class="col-4">
+              <label class="form-label">Saldo Inicial</label>
+              <input type="number" name="estoque_inicial" class="form-control" value="0">
+            </div>
+            <div class="col-4">
+              <label class="form-label">Custo Inicial (R$)</label>
+              <input type="number" step="0.01" name="custo_inicial" class="form-control" value="0.00">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Salvar Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Entrada de Estoque (Compra) -->
+<div class="modal fade" id="modalEntrada" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('entrada_acessorio') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-in-down text-primary me-2"></i>Entrada de Estoque (Compra)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Selecione o Acessório</label>
+            <select name="acessorio_id" id="entrada_acessorio_id" class="form-select" required>
+              <option value="">Selecione...</option>
+              {% for a in acessorios %}
+                <option value="{{ a.id }}">{{ a.nome }} (Saldo atual: {{ a.estoque_atual }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Quantidade Comprada</label>
+              <input type="number" name="quantidade" class="form-control" min="1" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Custo Unitário Pago (R$)</label>
+              <input type="number" step="0.01" name="custo_unitario" class="form-control" required placeholder="0,00">
+            </div>
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Fornecedor / Loja</label>
+              <select name="fornecedor_id" class="form-select">
+                <option value="">Não informado</option>
+                {% for f in fornecedores %}
+                  <option value="{{ f.id }}">{{ f.nome }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Nota Fiscal / Comprovante</label>
+              <input type="text" name="nota_fiscal" class="form-control" placeholder="Nº NF">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Data da Entrada</label>
+            <input type="date" name="data" class="form-control" value="{{ hoje }}">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar Entrada</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Saída de Estoque (Entrega) -->
+<div class="modal fade" id="modalSaida" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form action="{{ url_for('saida_acessorio') }}" method="POST">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold"><i class="bi bi-box-arrow-up-right text-success me-2"></i>Saída de Acessório (Entrega)</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Item a ser Entregue</label>
+            <select name="acessorio_id" id="saida_acessorio_id" class="form-select" required>
+              <option value="">Selecione o acessório...</option>
+              {% for a in acessorios %}
+                <option value="{{ a.id }}">{{ a.nome }} (Disponível: {{ a.estoque_atual }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Quantidade</label>
+              <input type="number" name="quantidade" class="form-control" value="1" min="1" required>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Motivo da Saída</label>
+              <select name="motivo" id="saida_motivo" class="form-select" required onchange="checarMotivoVale()">
+                <option value="novo">Novo Aparelho (Entrega Inicial)</option>
+                <option value="reposicao">Reposição por Desgaste Normal</option>
+                <option value="quebra">Quebra / Danificado</option>
+                <option value="perda">Perda / Extravio</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Colaborador que Recebeu</label>
+            <select name="colaborador_id" class="form-select" required>
+              <option value="">Selecione o colaborador...</option>
+              {% for c in colaboradores %}
+                <option value="{{ c.id }}">{{ c.nome }} ({{ c.setor }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label class="form-label">Dispositivo Vinculado (Opcional)</label>
+            <select name="dispositivo_id" class="form-select">
+              <option value="">Nenhum específico</option>
+              {% for d in dispositivos %}
+                <option value="{{ d.id }}">{{ d.marca }} {{ d.modelo }} ({{ d.identificador }})</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="form-check p-3 bg-light border rounded-3 mb-2" id="box_gerar_vale">
+            <input class="form-check-input" type="checkbox" name="gerar_vale" value="sim" id="check_gerar_vale">
+            <label class="form-check-label fw-bold text-danger" for="check_gerar_vale">
+              Gerar Vale para desconto no RH (Cobrar do Colaborador)
+            </label>
+            <div class="form-text small">Marque esta opção caso a perda/quebra deva ser descontada em folha.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-success">Registrar Saída</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Pré-seleciona item ao clicar no botão rápido
+  document.querySelectorAll('.btn-rapido-entrada').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      document.getElementById('entrada_acessorio_id').value = id;
+    });
+  });
+
+  document.querySelectorAll('.btn-rapido-saida').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      document.getElementById('saida_acessorio_id').value = id;
+    });
+  });
+
+  function checarMotivoVale() {
+    const motivo = document.getElementById('saida_motivo').value;
+    const checkVale = document.getElementById('check_gerar_vale');
+    if (motivo === 'quebra' || motivo === 'perda') {
+      checkVale.checked = true;
+    } else {
+      checkVale.checked = false;
+    }
+  }
+</script>
+{% endblock %}

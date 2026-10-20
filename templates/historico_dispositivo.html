@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+
+{% block title %}Histórico do Dispositivo - Consert Cell{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+  <a href="{{ url_for('dispositivos') }}" class="btn btn-sm btn-outline-custom mb-3">
+    <i class="bi bi-arrow-left"></i> Voltar para Dispositivos
+  </a>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+      <h3 class="fw-bold mb-1">
+        <i class="bi bi-phone-fill text-primary me-2"></i>{{ disp.marca }} {{ disp.modelo }}
+      </h3>
+      <p class="text-muted mb-0 small">Histórico completo de ordens de manutenção, laudos técnicos e acessórios entregues.</p>
+    </div>
+    <span class="badge-status badge-{{ disp.status }} fs-6">
+      {{ disp.status|replace('_', ' ')|capitalize }}
+    </span>
+  </div>
+</div>
+
+<!-- Resumo do Dispositivo em Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="metric-card">
+      <span class="metric-label">Identificação</span>
+      <div class="fw-bold fs-6 mt-1">{{ disp.identificador }}</div>
+      <div class="text-muted small">Patrimônio: {{ disp.patrimonio or '-' }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-card">
+      <span class="metric-label">Responsável Atual</span>
+      <div class="fw-bold fs-6 mt-1">{{ disp.colaborador.nome if disp.colaborador else 'TI (Estoque)' }}</div>
+      <div class="text-muted small">{{ disp.colaborador.setor if disp.colaborador else '-' }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-card">
+      <span class="metric-label">Valor de Aquisição</span>
+      <div class="fw-bold fs-6 mt-1 text-primary">{{ disp.valor_aquisicao|moeda }}</div>
+      <div class="text-muted small">Comprado em: {{ disp.data_aquisicao|data_br }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="metric-card">
+      <span class="metric-label">Total Gasto em Reparos</span>
+      <div class="fw-bold fs-6 mt-1 {% if disp.is_alerta_bomba %}text-danger{% else %}text-dark{% endif %}">
+        {{ disp.custo_total_manutencao|moeda }}
+      </div>
+      <div class="small {% if disp.is_alerta_bomba %}text-danger fw-bold{% else %}text-muted{% endif %}">
+        {{ disp.percentual_custo_aquisicao }}% do valor do aparelho
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Histórico de Ordens de Assistência -->
+<div class="card-table mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="fw-bold mb-0"><i class="bi bi-tools text-primary me-2"></i>Ordens de Assistência Técnica ({{ ordens|length }})</h6>
+    <a href="{{ url_for('ordens') }}" class="btn btn-sm btn-primary">Abrir Nova OS</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>OS</th>
+          <th>Data Envio</th>
+          <th>Assistência</th>
+          <th>Defeito Relatado</th>
+          <th>Causa & Diagnóstico</th>
+          <th>Valor Final</th>
+          <th>Responsável Custo</th>
+          <th>Retorno / Garantia</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for o in ordens %}
+        <tr>
+          <td><strong>#{{ o.id }}</strong></td>
+          <td>{{ o.data_envio|data_br }}</td>
+          <td>{{ o.fornecedor.nome }}</td>
+          <td>{{ o.defeito }}</td>
+          <td>
+            {% if o.causa %}
+              <div class="fw-semibold">{{ o.causa|replace('_', ' ')|capitalize }}</div>
+              <div class="text-muted small">{{ o.laudo or '-' }}</div>
+            {% else %}
+              <span class="text-muted small">Em avaliação</span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-bold">{{ o.valor_final|moeda if o.valor_final else (o.valor_orcado|moeda ~ ' (Orç.)') }}</div>
+          </td>
+          <td>
+            {% if o.responsavel_custo == 'empresa' %}
+              <span class="badge bg-light text-primary border">Empresa (100%)</span>
+            {% elif o.responsavel_custo == 'colaborador' %}
+              <span class="badge bg-danger-subtle text-danger border border-danger">Colaborador (Vale)</span>
+            {% elif o.responsavel_custo == 'misto' %}
+              <span class="badge bg-warning-subtle text-warning border border-warning">Misto (Empresa + Vale)</span>
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if o.data_retorno %}
+              <div>Retornou: {{ o.data_retorno|data_br }}</div>
+              {% if o.garantia_ate %}
+                <div class="text-muted small">Garantia até: {{ o.garantia_ate|data_br }}</div>
+              {% endif %}
+            {% else %}
+              <span class="badge bg-warning text-dark">{{ o.dias_fora }} dias fora</span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="badge-status badge-{{ o.status }}">
+              {{ o.status|replace('_', ' ')|capitalize }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="9" class="text-center py-4 text-muted">Nenhuma ordem de assistência registrada para este aparelho.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Histórico de Acessórios Entregues para este Aparelho -->
+<div class="card-table">
+  <div class="card-header">
+    <h6 class="fw-bold mb-0"><i class="bi bi-box-seam text-primary me-2"></i>Acessórios Entregues para este Dispositivo ({{ saidas|length }})</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Acessório</th>
+          <th>Quantidade</th>
+          <th>Colaborador</th>
+          <th>Motivo</th>
+          <th>Custo</th>
+          <th>Gerou Vale?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in saidas %}
+        <tr>
+          <td>{{ s.data|data_br }}</td>
+          <td><strong>{{ s.acessorio.nome }}</strong></td>
+          <td>{{ s.quantidade }}x</td>
+          <td>{{ s.colaborador.nome }}</td>
+          <td><span class="badge bg-light text-secondary border">{{ s.motivo|capitalize }}</span></td>
+          <td>{{ s.custo_no_momento|moeda }}</td>
+          <td>
+            {% if s.gerou_vale %}
+              <span class="badge bg-danger-subtle text-danger">Sim (Vale descontado)</span>
+            {% else %}
+              <span class="badge bg-light text-muted">Não (Empresa)</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center py-4 text-muted">Nenhum acessório registrado diretamente para este aparelho.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
