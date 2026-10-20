@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 160" width="100%" height="100%" fill="none">
+  <defs>
+    <!-- Frame Gradient -->
+    <linearGradient id="phoneFrame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="50%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+
+    <!-- Edge Highlight -->
+    <linearGradient id="edgeGleam" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8" stop-opacity="0.8" />
+      <stop offset="20%" stop-color="#334155" stop-opacity="0.3" />
+      <stop offset="80%" stop-color="#334155" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#64748B" stop-opacity="0.8" />
+    </linearGradient>
+
+    <!-- Screen Wallpaper -->
+    <linearGradient id="screenWall" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="40%" stop-color="#1E1B4B" />
+      <stop offset="75%" stop-color="#1E3A8A" />
+      <stop offset="100%" stop-color="#2563EB" />
+    </linearGradient>
+
+    <!-- Glass Reflection -->
+    <linearGradient id="glassReflect" x1="0%" y1="0%" x2="100%" y2="80%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.18" />
+      <stop offset="40%" stop-color="#FFFFFF" stop-opacity="0.05" />
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Side Buttons -->
+  <rect x="91" y="42" width="2" height="14" rx="1" fill="#475569" />
+  <rect x="91" y="62" width="2" height="10" rx="1" fill="#475569" />
+  <rect x="7" y="48" width="2" height="18" rx="1" fill="#475569" />
+
+  <!-- Outer Chassis (Drop Shadow + Border) -->
+  <rect x="9" y="8" width="82" height="144" rx="15" fill="url(#phoneFrame)" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.15))" />
+  <rect x="9.5" y="8.5" width="81" height="143" rx="14.5" stroke="url(#edgeGleam)" stroke-width="1" />
+
+  <!-- Bezel -->
+  <rect x="12" y="11" width="76" height="138" rx="12" fill="#000000" />
+
+  <!-- Active OLED Screen -->
+  <rect x="14" y="13" width="72" height="134" rx="10" fill="url(#screenWall)" />
+
+  <!-- Abstract UI / Wallpaper wave -->
+  <path d="M 14 90 Q 40 70 60 100 T 86 110 L 86 147 L 14 147 Z" fill="#3B82F6" opacity="0.35" />
+  <circle cx="50" cy="70" r="18" fill="#60A5FA" opacity="0.2" filter="blur(8px)" />
+
+  <!-- Screen Glass Light Reflection -->
+  <path d="M 14 13 L 65 13 L 25 147 L 14 147 Z" fill="url(#glassReflect)" />
+
+  <!-- Top Speaker Grill -->
+  <rect x="42" y="15" width="16" height="1.5" rx="0.75" fill="#334155" />
+
+  <!-- Punch Hole Camera -->
+  <circle cx="50" cy="20" r="2.2" fill="#020617" />
+  <circle cx="50.4" cy="19.8" r="0.8" fill="#38BDF8" opacity="0.7" />
+
+  <!-- Home Indicator Bar -->
+  <rect x="36" y="142" width="28" height="2" rx="1" fill="#FFFFFF" opacity="0.6" />
+</svg>

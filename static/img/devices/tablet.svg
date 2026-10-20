@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 160" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="tabFrame" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#475569" />
+      <stop offset="50%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#0F172A" />
+    </linearGradient>
+
+    <linearGradient id="tabEdge" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8" stop-opacity="0.8" />
+      <stop offset="100%" stop-color="#64748B" stop-opacity="0.8" />
+    </linearGradient>
+
+    <linearGradient id="tabScreen" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0F172A" />
+      <stop offset="40%" stop-color="#1E293B" />
+      <stop offset="100%" stop-color="#312E81" />
+    </linearGradient>
+
+    <linearGradient id="tabReflect" x1="0%" y1="0%" x2="100%" y2="70%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.15" />
+      <stop offset="35%" stop-color="#FFFFFF" stop-opacity="0.04" />
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+
+  <!-- Buttons -->
+  <rect x="50" y="8" width="18" height="2" rx="1" fill="#475569" />
+  <rect x="131" y="24" width="2" height="14" rx="1" fill="#475569" />
+
+  <!-- Chassis -->
+  <rect x="9" y="10" width="122" height="140" rx="12" fill="url(#tabFrame)" filter="drop-shadow(0 4px 6px rgba(0,0,0,0.15))" />
+  <rect x="9.5" y="10.5" width="121" height="139" rx="11.5" stroke="url(#tabEdge)" stroke-width="1" />
+
+  <!-- Screen Bezel -->
+  <rect x="15" y="16" width="110" height="128" rx="8" fill="#000000" />
+
+  <!-- Screen -->
+  <rect x="17" y="18" width="106" height="124" rx="6" fill="url(#tabScreen)" />
+
+  <!-- Ambient visual -->
+  <circle cx="70" cy="80" r="28" fill="#4F46E5" opacity="0.3" filter="blur(12px)" />
+  <path d="M 17 95 Q 60 70 90 100 T 123 115 L 123 142 L 17 142 Z" fill="#6366F1" opacity="0.25" />
+
+  <!-- Glass Reflection -->
+  <path d="M 17 18 L 80 18 L 30 142 L 17 142 Z" fill="url(#tabReflect)" />
+
+  <!-- Camera -->
+  <circle cx="70" cy="13.5" r="1.5" fill="#0F172A" />
+  <circle cx="70.3" cy="13.3" r="0.5" fill="#38BDF8" opacity="0.8" />
+
+  <!-- Home Bar -->
+  <rect x="52" y="138" width="36" height="2" rx="1" fill="#FFFFFF" opacity="0.5" />
+</svg>

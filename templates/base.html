@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{% block title %}Consert Cell - Gestão de Assistência e Estoque{% endblock %}</title>
+  <title>{% block title %}Controle de Dispositivos - Ambev Disfonte{% endblock %}</title>
   
-  <!-- Google Fonts: Inter -->
+  <!-- Google Fonts: Inter (Regular, Medium, Semi-Bold, Bold) -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -15,92 +15,163 @@
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
   
-  <!-- Custom CSS -->
+  <!-- Custom Design System CSS -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body class="saas-body">
 
-  <!-- Top Navigation -->
-  <nav class="navbar navbar-expand-lg app-navbar sticky-top py-2">
-    <div class="container-fluid px-4">
-      <a class="navbar-brand" href="{{ url_for('index') }}">
-        <i class="bi bi-tools text-primary fs-4"></i>
-        <span>Consert <span class="text-primary">Cell</span></span>
-        <span class="brand-badge">TI Gestão</span>
-      </a>
+  <div class="saas-layout">
+    <!-- SIDEBAR ESQUERDA (IDENTIDADE AMBEV DISFONTE) -->
+    <aside class="saas-sidebar" id="appSidebar">
+      <!-- Topo: Logo Disfonte em versão negativa + Badge TI Gestão -->
+      <div class="sidebar-brand-box">
+        <a href="{{ url_for('index') }}" class="brand-link" title="Ambev Disfonte - Início">
+          <img src="{{ url_for('static', filename='img/logo_disfonte.png') }}" 
+               alt="Cervejaria Ambev Disfonte" 
+               class="brand-logo-img">
+        </a>
+        <div class="mt-2">
+          <span class="badge-ti-gestao">TI GESTÃO</span>
+        </div>
+      </div>
 
-      <button class="navbar-toggler text-white" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu">
-        <i class="bi bi-list fs-2 text-white"></i>
-      </button>
-
-      <div class="collapse navbar-collapse" id="navMenu">
-        <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-4 gap-1">
+      <!-- Navegação Vertical Limpa e Espaçada -->
+      <nav class="sidebar-nav">
+        <div class="sidebar-nav-label">MENU PRINCIPAL</div>
+        <ul class="nav flex-column sidebar-nav-list">
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
-              <i class="bi bi-grid-1x2"></i> Painel Geral
+            <a class="sidebar-link {% if request.endpoint == 'index' %}active{% endif %}" href="{{ url_for('index') }}">
+              <i class="bi bi-grid-1x2 sidebar-icon"></i>
+              <span class="link-label">Painel Geral</span>
+              {% if request.endpoint == 'index' %}<i class="bi bi-check2 active-indicator"></i>{% endif %}
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'ordens' %}active{% endif %}" href="{{ url_for('ordens') }}">
-              <i class="bi bi-clipboard-pulse"></i> Ordens de Serviço
+            <a class="sidebar-link {% if request.endpoint == 'ordens' %}active{% endif %}" href="{{ url_for('ordens') }}">
+              <i class="bi bi-clipboard-pulse sidebar-icon"></i>
+              <span class="link-label">Ordens de Serviço</span>
+              {% if request.endpoint == 'ordens' %}<i class="bi bi-check2 active-indicator"></i>{% endif %}
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'dispositivos' or request.endpoint == 'historico_dispositivo' %}active{% endif %}" href="{{ url_for('dispositivos') }}">
-              <i class="bi bi-phone"></i> Dispositivos
+            <a class="sidebar-link {% if request.endpoint in ['dispositivos', 'historico_dispositivo'] %}active{% endif %}" href="{{ url_for('dispositivos') }}">
+              <i class="bi bi-phone sidebar-icon"></i>
+              <span class="link-label">Dispositivos</span>
+              {% if request.endpoint in ['dispositivos', 'historico_dispositivo'] %}<i class="bi bi-check2 active-indicator"></i>{% endif %}
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'acessorios' %}active{% endif %}" href="{{ url_for('acessorios') }}">
-              <i class="bi bi-box-seam"></i> Acessórios & Estoque
+            <a class="sidebar-link {% if request.endpoint == 'acessorios' %}active{% endif %}" href="{{ url_for('acessorios') }}">
+              <i class="bi bi-box-seam sidebar-icon"></i>
+              <span class="link-label">Acessórios & Estoque</span>
+              {% if request.endpoint == 'acessorios' %}<i class="bi bi-check2 active-indicator"></i>{% endif %}
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'vales' %}active{% endif %}" href="{{ url_for('vales') }}">
-              <i class="bi bi-receipt-cutoff"></i> Vales (RH)
+            <a class="sidebar-link {% if request.endpoint == 'vales' %}active{% endif %}" href="{{ url_for('vales') }}">
+              <i class="bi bi-receipt-cutoff sidebar-icon"></i>
+              <span class="link-label">Vales (RH)</span>
+              {% if request.endpoint == 'vales' %}<i class="bi bi-check2 active-indicator"></i>{% endif %}
             </a>
           </li>
           <li class="nav-item">
-            <a class="nav-link {% if request.endpoint == 'cadastros' %}active{% endif %}" href="{{ url_for('cadastros') }}">
-              <i class="bi bi-people"></i> Cadastros
+            <a class="sidebar-link {% if request.endpoint == 'cadastros' %}active{% endif %}" href="{{ url_for('cadastros') }}">
+              <i class="bi bi-people sidebar-icon"></i>
+              <span class="link-label">Cadastros de Apoio</span>
+              {% if request.endpoint == 'cadastros' %}<i class="bi bi-check2 active-indicator"></i>{% endif %}
             </a>
           </li>
         </ul>
+      </nav>
 
-        <div class="d-flex align-items-center gap-2">
-          <a href="{{ url_for('exportar_excel') }}" class="btn btn-sm btn-outline-light d-flex align-items-center gap-1 shadow-sm">
-            <i class="bi bi-file-earmark-spreadsheet text-success"></i> Exportar Excel
-          </a>
+      <!-- Ação Rápida de Exportação na Sidebar -->
+      <div class="sidebar-export-box">
+        <a href="{{ url_for('exportar_excel') }}" class="btn-sidebar-export" title="Exportar dados completos em planilha Excel">
+          <i class="bi bi-file-earmark-spreadsheet text-success fs-5"></i>
+          <span>Exportar Relatório</span>
+        </a>
+      </div>
+
+      <!-- Rodapé da Sidebar: Perfil & Sair -->
+      <div class="sidebar-footer">
+        <div class="user-profile-box">
+          <div class="user-avatar-circle">TI</div>
+          <div class="user-meta">
+            <span class="user-name">Administrador TI</span>
+            <span class="user-subtitle">Ambev Disfonte</span>
+          </div>
         </div>
+        <a href="#" class="btn-logout" title="Sessão local ativa" onclick="event.preventDefault(); alert('Sessão local ativa da TI Disfonte.');">
+          <i class="bi bi-box-arrow-right"></i>
+        </a>
+      </div>
+    </aside>
+
+    <!-- ÁREA PRINCIPAL DE CONTEÚDO -->
+    <div class="saas-main-wrapper">
+      <!-- Barra Superior Mobile (Responsividade) -->
+      <div class="mobile-topbar d-lg-none">
+        <button class="btn btn-sm btn-link text-white p-0" id="sidebarToggle" type="button">
+          <i class="bi bi-list fs-2"></i>
+        </button>
+        <img src="{{ url_for('static', filename='img/logo_disfonte.png') }}" alt="Logo Disfonte" class="mobile-logo-img">
+        <span class="badge-ti-gestao">TI GESTÃO</span>
+      </div>
+
+      <!-- Container de Alertas e Mensagens Flash -->
+      <div class="saas-content-area">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="container-fluid p-0 mb-4">
+              {% for category, message in messages %}
+                <div class="alert alert-{{ category }} alert-dismissible fade show saas-alert shadow-sm" role="alert">
+                  <div class="d-flex align-items-center gap-2">
+                    <i class="bi {% if category == 'success' %}bi-check-circle-fill text-success{% else %}bi-exclamation-triangle-fill text-warning{% endif %} fs-5"></i>
+                    <div>{{ message }}</div>
+                  </div>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+
+        <!-- Bloco Principal das Páginas -->
+        <main>
+          {% block content %}{% endblock %}
+        </main>
       </div>
     </div>
-  </nav>
-
-  <!-- Flash Messages -->
-  <div class="container-fluid px-4 mt-3">
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        {% for category, message in messages %}
-          <div class="alert alert-{{ category }} alert-dismissible fade show shadow-sm" role="alert">
-            <i class="bi bi-info-circle-fill me-2"></i> {{ message }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-          </div>
-        {% endfor %}
-      {% endif %}
-    {% endwith %}
   </div>
 
-  <!-- Main Content Area -->
-  <main class="container-fluid px-4 py-3">
-    {% block content %}{% endblock %}
-  </main>
+  <!-- Overlay para Mobile quando sidebar aberta -->
+  <div class="sidebar-overlay d-lg-none" id="sidebarOverlay"></div>
 
   <!-- Bootstrap 5 Bundle JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    // Toggle Mobile Sidebar
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.getElementById('appSidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+
+    if (sidebarToggle && sidebar && overlay) {
+      sidebarToggle.addEventListener('click', () => {
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('visible');
+      });
+
+      overlay.addEventListener('click', () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('visible');
+      });
+    }
+  </script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

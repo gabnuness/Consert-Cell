@@ -1,29 +1,33 @@
 {% extends "base.html" %}
 
-{% block title %}Dispositivos - Consert Cell{% endblock %}
+{% block title %}Dispositivos da Empresa - Ambev Disfonte{% endblock %}
 
 {% block content %}
-<div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
+<!-- CABEÇALHO DA PÁGINA -->
+<div class="page-header d-flex flex-wrap justify-content-between align-items-center mb-4 gap-3">
   <div>
-    <h3 class="fw-bold mb-1">Dispositivos da Empresa</h3>
-    <p class="text-muted mb-0 small">Controle de celulares e tablets, IMEIs, responsáveis e histórico de manutenção.</p>
+    <h1 class="page-title">Dispositivos da Empresa</h1>
+    <p class="page-subtitle">Controle de celulares e tablets, IMEIs, responsáveis e histórico de manutenção</p>
   </div>
-  <button type="button" class="btn btn-primary d-flex align-items-center gap-1" data-bs-toggle="modal" data-bs-target="#modalNovoDispositivo">
-    <i class="bi bi-plus-lg"></i> Cadastrar Dispositivo
-  </button>
+  <div>
+    <button type="button" class="btn btn-primary-cobalt d-flex align-items-center gap-2" data-bs-toggle="modal" data-bs-target="#modalNovoDispositivo">
+      <i class="bi bi-plus-lg fs-6"></i>
+      <span>Cadastrar Dispositivo</span>
+    </button>
+  </div>
 </div>
 
-<!-- Barra de Busca e Filtros -->
-<div class="card-table p-3 mb-4">
-  <form method="GET" action="{{ url_for('dispositivos') }}" class="row g-2 align-items-center">
+<!-- BARRA DE PESQUISA E FILTROS EXPANDIDA -->
+<div class="filters-card mb-4">
+  <form method="GET" action="{{ url_for('dispositivos') }}" class="row g-3 align-items-center">
     <div class="col-12 col-md-5">
-      <div class="input-group">
-        <span class="input-group-text bg-white border-end-0"><i class="bi bi-search text-muted"></i></span>
-        <input type="text" name="busca" class="form-control border-start-0" placeholder="Buscar por marca, modelo, IMEI ou serial..." value="{{ busca }}">
+      <div class="input-search-group">
+        <i class="bi bi-search search-icon"></i>
+        <input type="text" name="busca" class="form-control filter-input-search" placeholder="Buscar por marca, modelo, IMEI ou serial..." value="{{ busca }}">
       </div>
     </div>
     <div class="col-6 col-md-3">
-      <select name="status" class="form-select">
+      <select name="status" class="form-select filter-select">
         <option value="">Todos os Status</option>
         <option value="em_uso" {% if filtro_status == 'em_uso' %}selected{% endif %}>Em Uso</option>
         <option value="em_estoque" {% if filtro_status == 'em_estoque' %}selected{% endif %}>Em Estoque (TI)</option>
@@ -32,184 +36,215 @@
       </select>
     </div>
     <div class="col-6 col-md-2">
-      <select name="tipo" class="form-select">
+      <select name="tipo" class="form-select filter-select">
         <option value="">Todos os Tipos</option>
         <option value="celular" {% if filtro_tipo == 'celular' %}selected{% endif %}>Celular</option>
         <option value="tablet" {% if filtro_tipo == 'tablet' %}selected{% endif %}>Tablet</option>
       </select>
     </div>
     <div class="col-12 col-md-2 d-flex gap-2">
-      <button type="submit" class="btn btn-primary w-100">Filtrar</button>
+      <button type="submit" class="btn btn-filter-action flex-grow-1">Filtrar</button>
       {% if busca or filtro_status or filtro_tipo %}
-        <a href="{{ url_for('dispositivos') }}" class="btn btn-outline-custom" title="Limpar filtros"><i class="bi bi-x-lg"></i></a>
+        <a href="{{ url_for('dispositivos') }}" class="btn btn-filter-clear" title="Limpar filtros">
+          <i class="bi bi-x-lg"></i>
+        </a>
       {% endif %}
     </div>
   </form>
 </div>
 
-<!-- Tabela de Dispositivos -->
-<div class="card-table">
-  <div class="table-responsive">
-    <table class="table mb-0 align-middle">
-      <thead>
-        <tr>
-          <th>Aparelho</th>
-          <th>Identificação (IMEI / Serial)</th>
-          <th>Responsável / Setor</th>
-          <th>Valor Compra</th>
-          <th>Custo Manutenções</th>
-          <th>Status</th>
-          <th class="text-end">Ações</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for d in dispositivos %}
-        <tr>
-          <td>
-            <div class="d-flex align-items-center gap-2">
-              <div class="icon-box bg-light border text-primary" style="width: 36px; height: 36px; border-radius: 8px;">
-                <i class="bi {% if d.tipo == 'tablet' %}bi-tablet{% else %}bi-phone{% endif %} fs-5"></i>
-              </div>
-              <div>
-                <strong class="d-block">{{ d.marca }} {{ d.modelo }}</strong>
-                <span class="text-muted small">Patrimônio: {{ d.patrimonio or '-' }}</span>
-              </div>
-            </div>
-          </td>
-          <td>
-            <div class="font-monospace small">{{ d.identificador }}</div>
-            {% if d.serial and d.imei %}
-              <div class="text-muted small">S/N: {{ d.serial }}</div>
-            {% endif %}
-          </td>
-          <td>
-            {% if d.colaborador %}
-              <div class="fw-semibold">{{ d.colaborador.nome }}</div>
-              <span class="badge bg-light text-secondary border small">{{ d.colaborador.setor }}</span>
-            {% else %}
-              <span class="text-muted fst-italic">Disponível no TI</span>
-            {% endif %}
-          </td>
-          <td>{{ d.valor_aquisicao|moeda }}</td>
-          <td>
-            <div class="fw-bold">{{ d.custo_total_manutencao|moeda }}</div>
-            {% if d.percentual_custo_aquisicao > 0 %}
-              <span class="badge {% if d.is_alerta_bomba %}bg-danger{% else %}bg-light text-secondary border{% endif %} small">
-                {{ d.percentual_custo_aquisicao }}% do valor
-              </span>
-            {% endif %}
-          </td>
-          <td>
-            <span class="badge-status badge-{{ d.status }}">
-              {{ d.status|replace('_', ' ')|capitalize }}
-            </span>
-          </td>
-          <td class="text-end">
-            <div class="dropdown">
-              <button class="btn btn-sm btn-outline-custom dropdown-toggle" type="button" data-bs-toggle="dropdown">
-                Opções
-              </button>
-              <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
-                <li>
-                  <a class="dropdown-item" href="{{ url_for('historico_dispositivo', id=d.id) }}">
-                    <i class="bi bi-clock-history text-primary me-2"></i> Ver Histórico
-                  </a>
-                </li>
-                <li>
-                  <button class="dropdown-item btn-editar" 
-                    data-id="{{ d.id }}"
-                    data-tipo="{{ d.tipo }}"
-                    data-marca="{{ d.marca }}"
-                    data-modelo="{{ d.modelo }}"
-                    data-imei="{{ d.imei or '' }}"
-                    data-serial="{{ d.serial or '' }}"
-                    data-patrimonio="{{ d.patrimonio or '' }}"
-                    data-valor="{{ d.valor_aquisicao }}"
-                    data-data="{{ d.data_aquisicao.strftime('%Y-%m-%d') if d.data_aquisicao else '' }}"
-                    data-colaborador="{{ d.colaborador_id or '' }}"
-                    data-status="{{ d.status }}"
-                    data-obs="{{ d.observacoes or '' }}"
-                    data-bs-toggle="modal" data-bs-target="#modalEditarDispositivo">
-                    <i class="bi bi-pencil text-secondary me-2"></i> Editar Dados
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </td>
-        </tr>
-        {% else %}
-        <tr>
-          <td colspan="7" class="text-center py-5 text-muted">
-            <i class="bi bi-phone-vibrate fs-1 d-block mb-2 text-secondary"></i>
-            Nenhum dispositivo encontrado com os filtros aplicados.
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+<!-- LISTA DE CARDS RICOS DE DISPOSITIVOS -->
+<div class="devices-list-container">
+  {% for d in dispositivos %}
+  <div class="device-rich-card">
+    <!-- 1. MINIATURA DO DISPOSITIVO -->
+    <div class="device-thumb-box">
+      {% if d.tipo == 'tablet' %}
+        <img src="{{ url_for('static', filename='img/devices/tablet.svg') }}" alt="Tablet {{ d.modelo }}" class="device-thumb-img">
+      {% else %}
+        <img src="{{ url_for('static', filename='img/devices/smartphone.svg') }}" alt="Smartphone {{ d.modelo }}" class="device-thumb-img">
+      {% endif %}
+    </div>
+
+    <!-- 2. IDENTIFICAÇÃO DO APARELHO -->
+    <div class="device-col device-col-model">
+      <h2 class="device-model-name mb-0">{{ d.marca }} {{ d.modelo }}</h2>
+      <div class="device-patrimonio">
+        Patrimônio: <span class="fw-medium text-dark">{{ d.patrimonio or '-' }}</span>
+      </div>
+    </div>
+
+    <!-- 3. IDENTIFICAÇÃO TÉCNICA -->
+    <div class="device-col device-col-tech">
+      <span class="device-col-label">IDENTIFICAÇÃO</span>
+      <div class="device-tech-value font-monospace">{{ d.identificador }}</div>
+      {% if d.serial and d.imei %}
+        <div class="device-tech-sub">S/N: {{ d.serial }}</div>
+      {% endif %}
+    </div>
+
+    <!-- 4. RESPONSÁVEL -->
+    <div class="device-col device-col-responsible">
+      <span class="device-col-label">RESPONSÁVEL</span>
+      {% if d.colaborador %}
+        <div class="device-responsible-name">{{ d.colaborador.nome }}</div>
+        <span class="badge-setor-pill">{{ d.colaborador.setor }}</span>
+      {% else %}
+        <div class="text-muted fst-italic small">Disponível no TI</div>
+        <span class="badge-setor-pill badge-setor-estoque">TI Estoque</span>
+      {% endif %}
+    </div>
+
+    <!-- 5. VALOR DE COMPRA -->
+    <div class="device-col device-col-purchase">
+      <span class="device-col-label">VALOR DE COMPRA</span>
+      <div class="device-value-text">{{ d.valor_aquisicao|moeda }}</div>
+    </div>
+
+    <!-- 6. CUSTO DE MANUTENÇÃO -->
+    <div class="device-col device-col-maintenance">
+      <span class="device-col-label">CUSTO MANUTENÇÕES</span>
+      <div class="device-maintenance-val">{{ d.custo_total_manutencao|moeda }}</div>
+      {% if d.percentual_custo_aquisicao > 0 %}
+        <div class="device-depreciation-text {% if d.is_alerta_bomba %}text-danger fw-semibold{% endif %}">
+          {{ d.percentual_custo_aquisicao }}% do valor
+        </div>
+      {% else %}
+        <div class="device-depreciation-text text-muted">0.0% do valor</div>
+      {% endif %}
+    </div>
+
+    <!-- 7. STATUS -->
+    <div class="device-col device-col-status">
+      <span class="device-col-label">STATUS</span>
+      <div>
+        <span class="badge-status-saas badge-status-{{ d.status }}">
+          {{ d.status|replace('_', ' ')|capitalize }}
+        </span>
+      </div>
+    </div>
+
+    <!-- 8. AÇÕES (DROPDOWN DE OPÇÕES) -->
+    <div class="device-col device-col-actions text-end">
+      <div class="dropdown">
+        <button class="btn btn-options-dropdown dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <span>Opções</span>
+          <i class="bi bi-chevron-down chevron-icon"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end shadow-sm saas-dropdown-menu">
+          <li>
+            <a class="dropdown-item" href="{{ url_for('historico_dispositivo', id=d.id) }}">
+              <i class="bi bi-clock-history text-primary me-2"></i> Ver Histórico
+            </a>
+          </li>
+          <li>
+            <button class="dropdown-item btn-editar" 
+              data-id="{{ d.id }}"
+              data-tipo="{{ d.tipo }}"
+              data-marca="{{ d.marca }}"
+              data-modelo="{{ d.modelo }}"
+              data-imei="{{ d.imei or '' }}"
+              data-serial="{{ d.serial or '' }}"
+              data-patrimonio="{{ d.patrimonio or '' }}"
+              data-valor="{{ d.valor_aquisicao }}"
+              data-data="{{ d.data_aquisicao.strftime('%Y-%m-%d') if d.data_aquisicao else '' }}"
+              data-colaborador="{{ d.colaborador_id or '' }}"
+              data-status="{{ d.status }}"
+              data-obs="{{ d.observacoes or '' }}"
+              data-bs-toggle="modal" data-bs-target="#modalEditarDispositivo">
+              <i class="bi bi-pencil text-secondary me-2"></i> Editar Dados
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
   </div>
+  {% else %}
+  <div class="empty-state-card text-center py-5">
+    <div class="empty-icon-box mb-3">
+      <i class="bi bi-phone-vibrate fs-1 text-muted"></i>
+    </div>
+    <h3 class="fw-bold fs-5 text-dark mb-1">Nenhum dispositivo encontrado</h3>
+    <p class="text-muted small mb-3">Não encontramos nenhum aparelho com os critérios de busca selecionados.</p>
+    {% if busca or filtro_status or filtro_tipo %}
+      <a href="{{ url_for('dispositivos') }}" class="btn btn-outline-custom">Limpar Filtros de Busca</a>
+    {% else %}
+      <button type="button" class="btn btn-primary-cobalt" data-bs-toggle="modal" data-bs-target="#modalNovoDispositivo">
+        <i class="bi bi-plus-lg me-1"></i> Cadastrar Primeiro Dispositivo
+      </button>
+    {% endif %}
+  </div>
+  {% endfor %}
 </div>
 
 <!-- Modal: Novo Dispositivo -->
 <div class="modal fade" id="modalNovoDispositivo" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content saas-modal">
       <form action="{{ url_for('dispositivos') }}" method="POST">
         <div class="modal-header">
-          <h5 class="modal-title fw-bold"><i class="bi bi-phone-fill text-primary me-2"></i>Cadastrar Novo Dispositivo</h5>
+          <div class="d-flex align-items-center gap-2">
+            <div class="modal-icon-header">
+              <i class="bi bi-phone text-primary"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">Cadastrar Novo Dispositivo</h5>
+              <p class="text-muted small mb-0">Adicione os dados cadastrais do aparelho para rastreio</p>
+            </div>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <div class="row g-3">
             <div class="col-md-4">
-              <label class="form-label">Tipo de Aparelho</label>
-              <select name="tipo" class="form-select" required>
+              <label class="form-label saas-label">Tipo de Aparelho</label>
+              <select name="tipo" class="form-select saas-input" required>
                 <option value="celular">Celular</option>
                 <option value="tablet">Tablet</option>
               </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Marca</label>
-              <input type="text" name="marca" class="form-control" placeholder="Ex: Samsung, Motorola" required>
+              <label class="form-label saas-label">Marca</label>
+              <input type="text" name="marca" class="form-control saas-input" placeholder="Ex: Samsung, Motorola" required>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Modelo</label>
-              <input type="text" name="modelo" class="form-control" placeholder="Ex: Galaxy A15, Moto G34" required>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label">IMEI (Principal)</label>
-              <input type="text" name="imei" class="form-control" placeholder="15 dígitos">
-              <div class="form-text">Obrigatório para celulares com chip.</div>
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Número de Série (S/N)</label>
-              <input type="text" name="serial" class="form-control" placeholder="Para tablets ou apoio">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Patrimônio / Etiqueta</label>
-              <input type="text" name="patrimonio" class="form-control" placeholder="Ex: PAT-0105">
+              <label class="form-label saas-label">Modelo</label>
+              <input type="text" name="modelo" class="form-control saas-input" placeholder="Ex: Galaxy A15, Moto G34" required>
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Data de Aquisição</label>
-              <input type="date" name="data_aquisicao" class="form-control">
+              <label class="form-label saas-label">IMEI (Principal)</label>
+              <input type="text" name="imei" class="form-control saas-input" placeholder="15 dígitos">
+              <div class="form-text small">Obrigatório para aparelhos com chip.</div>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Valor de Aquisição (R$)</label>
-              <input type="number" step="0.01" name="valor_aquisicao" class="form-control" placeholder="0,00">
+              <label class="form-label saas-label">Número de Série (S/N)</label>
+              <input type="text" name="serial" class="form-control saas-input" placeholder="Para tablets ou apoio">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Situação Inicial</label>
-              <select name="status" class="form-select">
+              <label class="form-label saas-label">Patrimônio / Etiqueta</label>
+              <input type="text" name="patrimonio" class="form-control saas-input" placeholder="Ex: PAT-0105">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label saas-label">Data de Aquisição</label>
+              <input type="date" name="data_aquisicao" class="form-control saas-input">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label saas-label">Valor de Aquisição (R$)</label>
+              <input type="number" step="0.01" name="valor_aquisicao" class="form-control saas-input" placeholder="0.00">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label saas-label">Situação Inicial</label>
+              <select name="status" class="form-select saas-input">
                 <option value="em_uso">Em Uso</option>
                 <option value="em_estoque">Em Estoque (TI)</option>
               </select>
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Colaborador Responsável</label>
-              <select name="colaborador_id" class="form-select">
+              <label class="form-label saas-label">Colaborador Responsável</label>
+              <select name="colaborador_id" class="form-select saas-input">
                 <option value="">Nenhum (Em estoque com TI)</option>
                 {% for c in colaboradores %}
                   <option value="{{ c.id }}">{{ c.nome }} ({{ c.setor }})</option>
@@ -218,14 +253,14 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Observações</label>
-              <input type="text" name="observacoes" class="form-control" placeholder="Ex: Detalhes, número da linha, etc.">
+              <label class="form-label saas-label">Observações</label>
+              <input type="text" name="observacoes" class="form-control saas-input" placeholder="Ex: Linha telefônica, chip, capa anti-impacto">
             </div>
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer bg-light px-4 py-3">
           <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar Dispositivo</button>
+          <button type="submit" class="btn btn-primary-cobalt">Salvar Dispositivo</button>
         </div>
       </form>
     </div>
@@ -234,55 +269,63 @@
 
 <!-- Modal: Editar Dispositivo -->
 <div class="modal fade" id="modalEditarDispositivo" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content saas-modal">
       <form id="formEditarDispositivo" method="POST">
         <div class="modal-header">
-          <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>Editar Dispositivo</h5>
+          <div class="d-flex align-items-center gap-2">
+            <div class="modal-icon-header">
+              <i class="bi bi-pencil-square text-primary"></i>
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold text-dark mb-0">Editar Dispositivo</h5>
+              <p class="text-muted small mb-0">Atualize dados cadastrais, responsável ou status do aparelho</p>
+            </div>
+          </div>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
-        <div class="modal-body">
+        <div class="modal-body p-4">
           <div class="row g-3">
             <div class="col-md-4">
-              <label class="form-label">Tipo</label>
-              <select name="tipo" id="edit_tipo" class="form-select" required>
+              <label class="form-label saas-label">Tipo</label>
+              <select name="tipo" id="edit_tipo" class="form-select saas-input" required>
                 <option value="celular">Celular</option>
                 <option value="tablet">Tablet</option>
               </select>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Marca</label>
-              <input type="text" name="marca" id="edit_marca" class="form-control" required>
+              <label class="form-label saas-label">Marca</label>
+              <input type="text" name="marca" id="edit_marca" class="form-control saas-input" required>
             </div>
             <div class="col-md-4">
-              <label class="form-label">Modelo</label>
-              <input type="text" name="modelo" id="edit_modelo" class="form-control" required>
-            </div>
-
-            <div class="col-md-4">
-              <label class="form-label">IMEI</label>
-              <input type="text" name="imei" id="edit_imei" class="form-control">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Serial</label>
-              <input type="text" name="serial" id="edit_serial" class="form-control">
-            </div>
-            <div class="col-md-4">
-              <label class="form-label">Patrimônio</label>
-              <input type="text" name="patrimonio" id="edit_patrimonio" class="form-control">
+              <label class="form-label saas-label">Modelo</label>
+              <input type="text" name="modelo" id="edit_modelo" class="form-control saas-input" required>
             </div>
 
             <div class="col-md-4">
-              <label class="form-label">Data de Compra</label>
-              <input type="date" name="data_aquisicao" id="edit_data" class="form-control">
+              <label class="form-label saas-label">IMEI</label>
+              <input type="text" name="imei" id="edit_imei" class="form-control saas-input">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Valor de Compra (R$)</label>
-              <input type="number" step="0.01" name="valor_aquisicao" id="edit_valor" class="form-control">
+              <label class="form-label saas-label">Serial</label>
+              <input type="text" name="serial" id="edit_serial" class="form-control saas-input">
             </div>
             <div class="col-md-4">
-              <label class="form-label">Status</label>
-              <select name="status" id="edit_status" class="form-select">
+              <label class="form-label saas-label">Patrimônio</label>
+              <input type="text" name="patrimonio" id="edit_patrimonio" class="form-control saas-input">
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label saas-label">Data de Compra</label>
+              <input type="date" name="data_aquisicao" id="edit_data" class="form-control saas-input">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label saas-label">Valor de Compra (R$)</label>
+              <input type="number" step="0.01" name="valor_aquisicao" id="edit_valor" class="form-control saas-input">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label saas-label">Status</label>
+              <select name="status" id="edit_status" class="form-select saas-input">
                 <option value="em_uso">Em Uso</option>
                 <option value="em_estoque">Em Estoque (TI)</option>
                 <option value="na_assistencia">Na Assistência</option>
@@ -291,8 +334,8 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Colaborador Responsável</label>
-              <select name="colaborador_id" id="edit_colaborador" class="form-select">
+              <label class="form-label saas-label">Colaborador Responsável</label>
+              <select name="colaborador_id" id="edit_colaborador" class="form-select saas-input">
                 <option value="">Nenhum (Em estoque com TI)</option>
                 {% for c in colaboradores %}
                   <option value="{{ c.id }}">{{ c.nome }} ({{ c.setor }})</option>
@@ -301,14 +344,14 @@
             </div>
 
             <div class="col-md-6">
-              <label class="form-label">Observações</label>
-              <input type="text" name="observacoes" id="edit_obs" class="form-control">
+              <label class="form-label saas-label">Observações</label>
+              <input type="text" name="observacoes" id="edit_obs" class="form-control saas-input">
             </div>
           </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer bg-light px-4 py-3">
           <button type="button" class="btn btn-outline-custom" data-bs-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Salvar Alterações</button>
+          <button type="submit" class="btn btn-primary-cobalt">Salvar Alterações</button>
         </div>
       </form>
     </div>
