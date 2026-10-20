@@ -43,6 +43,22 @@ def formato_data(val_data):
 def injetar_globais():
     return {'hoje': date.today().strftime('%Y-%m-%d')}
 
+def parse_float_br(valor):
+    """Converte valores monetários em formato brasileiro ('1.250,50' ou '1250,50') ou internacional ('1250.50') para float com segurança."""
+    if not valor:
+        return 0.0
+    if isinstance(valor, (int, float)):
+        return float(valor)
+    texto = str(valor).replace('R$', '').strip()
+    if not texto:
+        return 0.0
+    if ',' in texto:
+        texto = texto.replace('.', '').replace(',', '.')
+    try:
+        return float(texto)
+    except (ValueError, TypeError):
+        return 0.0
+
 
 # ==========================================
 # ROTA 1: DASHBOARD
@@ -137,7 +153,7 @@ def dispositivos():
         patrimonio = request.form.get('patrimonio', '').strip() or None
         data_aquisicao_str = request.form.get('data_aquisicao')
         data_aquisicao = datetime.strptime(data_aquisicao_str, '%Y-%m-%d').date() if data_aquisicao_str else None
-        valor_aquisicao = float(request.form.get('valor_aquisicao') or 0.0)
+        valor_aquisicao = parse_float_br(request.form.get('valor_aquisicao'))
         colaborador_id = request.form.get('colaborador_id') or None
         status = request.form.get('status', 'em_uso')
         observacoes = request.form.get('observacoes', '').strip()
@@ -212,7 +228,7 @@ def editar_dispositivo(id):
     if data_aquisicao_str:
         disp.data_aquisicao = datetime.strptime(data_aquisicao_str, '%Y-%m-%d').date()
     
-    disp.valor_aquisicao = float(request.form.get('valor_aquisicao') or 0.0)
+    disp.valor_aquisicao = parse_float_br(request.form.get('valor_aquisicao'))
     disp.colaborador_id = request.form.get('colaborador_id') or None
     disp.status = request.form.get('status', disp.status)
     disp.observacoes = request.form.get('observacoes', '').strip()
@@ -241,11 +257,15 @@ def ordens():
         data_envio_str = request.form.get('data_envio')
         data_envio = datetime.strptime(data_envio_str, '%Y-%m-%d').date() if data_envio_str else date.today()
         defeito = request.form.get('defeito', '').strip()
-        valor_orcado = float(request.form.get('valor_orcado') or 0.0)
+        valor_orcado = parse_float_br(request.form.get('valor_orcado'))
         observacoes = request.form.get('observacoes', '').strip()
 
         disp = Dispositivo.query.get_or_404(dispositivo_id)
         colaborador_id = disp.colaborador_id
+
+        if disp.status == 'na_assistencia':
+            flash(f"O dispositivo {disp.marca} {disp.modelo} ({disp.identificador}) já está na assistência técnica com uma OS em aberto!", "danger")
+            return redirect(url_for('ordens'))
 
         # Verificar se o aparelho teve OS devolvida nos últimos 90 dias
         data_limite_garantia = date.today() - timedelta(days=90)
@@ -310,7 +330,7 @@ def atualizar_status_ordem(id):
     novo_status = request.form.get('status')
     valor_orcado = request.form.get('valor_orcado')
     if valor_orcado:
-        os_obj.valor_orcado = float(valor_orcado)
+        os_obj.valor_orcado = parse_float_br(valor_orcado)
     
     os_obj.status = novo_status
     db.session.commit()
@@ -326,7 +346,11 @@ def concluir_ordem(id):
     data_retorno_str = request.form.get('data_retorno')
     data_retorno = datetime.strptime(data_retorno_str, '%Y-%m-%d').date() if data_retorno_str else date.today()
     
-    valor_final = float(request.form.get('valor_final') or 0.0)
+    if data_retorno < os_obj.data_envio:
+        flash("A data de retorno não pode ser anterior à data de envio do aparelho!", "danger")
+        return redirect(url_for('ordens'))
+
+    valor_final = parse_float_br(request.form.get('valor_final'))
     causa = request.form.get('causa', 'desgaste_natural')
     laudo = request.form.get('laudo', '').strip()
     responsavel_custo = request.form.get('responsavel_custo', 'empresa')
@@ -342,7 +366,7 @@ def concluir_ordem(id):
         valor_empresa = 0.0
         valor_colaborador = valor_final
     else:  # misto
-        valor_colaborador = float(request.form.get('valor_colaborador') or 0.0)
+        valor_colaborador = parse_float_br(request.form.get('valor_colaborador'))
         valor_empresa = max(0.0, valor_final - valor_colaborador)
 
     os_obj.status = status_final
@@ -431,7 +455,7 @@ def acessorios():
         compatibilidade = request.form.get('compatibilidade', '').strip()
         estoque_minimo = int(request.form.get('estoque_minimo') or 5)
         estoque_inicial = int(request.form.get('estoque_inicial') or 0)
-        custo_inicial = float(request.form.get('custo_inicial') or 0.0)
+        custo_inicial = parse_float_br(request.form.get('custo_inicial'))
 
         novo_acess = Acessorio(
             nome=nome,
@@ -466,7 +490,7 @@ def acessorios():
 def entrada_acessorio():
     acessorio_id = request.form.get('acessorio_id')
     quantidade = int(request.form.get('quantidade') or 0)
-    custo_unitario = float(request.form.get('custo_unitario') or 0.0)
+    custo_unitario = parse_float_br(request.form.get('custo_unitario'))
     fornecedor_id = request.form.get('fornecedor_id') or None
     nota_fiscal = request.form.get('nota_fiscal', '').strip()
     data_str = request.form.get('data')
