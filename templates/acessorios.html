@@ -70,6 +70,14 @@
               <button class="btn btn-sm btn-outline-success btn-rapido-saida" data-id="{{ a.id }}" data-bs-toggle="modal" data-bs-target="#modalSaida" title="Entregar Acessório">
                 <i class="bi bi-arrow-right"></i>
               </button>
+              <button class="btn btn-sm btn-outline-danger btn-excluir-acess"
+                data-id="{{ a.id }}"
+                data-nome="{{ a.nome }}"
+                data-entradas="{{ a.entradas|length }}"
+                data-saidas="{{ a.saidas|length }}"
+                data-bs-toggle="modal" data-bs-target="#modalExcluirAcessorio" title="Excluir Item">
+                <i class="bi bi-trash3"></i>
+              </button>
             </div>
           </td>
         </tr>
@@ -316,6 +324,37 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL: EXCLUIR ACESSÓRIO / EQUIPAMENTO -->
+<div class="modal fade" id="modalExcluirAcessorio" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="formExcluirAcessorio" method="POST">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-trash3-fill me-2"></i>Remover Item do Estoque</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="mb-2">Tem certeza de que deseja remover o item <strong id="acessNomeExcluir" class="text-danger"></strong> do catálogo?</p>
+          <div id="acessAvisoVinculos" class="alert alert-warning small d-none">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span id="acessTextoVinculos"></span>
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="forcar" value="1" id="checkForcarAcess">
+            <label class="form-check-label small text-secondary" for="checkForcarAcess">
+              Confirmar exclusão mesmo se houver histórico de compras ou entregas registradas para este item.
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger btn-sm">Confirmar Exclusão</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -332,6 +371,32 @@
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
       document.getElementById('saida_acessorio_id').value = id;
+    });
+  });
+
+  // Excluir Acessório
+  document.querySelectorAll('.btn-excluir-acess').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      const nome = this.getAttribute('data-nome');
+      const entradas = parseInt(this.getAttribute('data-entradas') || '0');
+      const saidas = parseInt(this.getAttribute('data-saidas') || '0');
+
+      document.getElementById('formExcluirAcessorio').action = `/acessorios/${id}/excluir`;
+      document.getElementById('acessNomeExcluir').textContent = nome;
+
+      const aviso = document.getElementById('acessAvisoVinculos');
+      const texto = document.getElementById('acessTextoVinculos');
+      const check = document.getElementById('checkForcarAcess');
+
+      if (entradas > 0 || saidas > 0) {
+        aviso.classList.remove('d-none');
+        texto.textContent = `Este item possui ${entradas} entrada(s) e ${saidas} saída(s) vinculadas no histórico.`;
+        check.checked = true;
+      } else {
+        aviso.classList.add('d-none');
+        check.checked = false;
+      }
     });
   });
 

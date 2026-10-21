@@ -105,7 +105,7 @@
           </td>
           <td class="text-end">
             {% if o.status not in ['devolvido', 'sem_conserto'] %}
-              <div class="d-flex justify-content-end gap-1">
+              <div class="d-flex justify-content-end align-items-center gap-1">
                 <button type="button" class="btn btn-sm btn-outline-custom btn-status"
                   data-id="{{ o.id }}"
                   data-status="{{ o.status }}"
@@ -118,14 +118,95 @@
                   data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
                   data-colab="{{ o.colaborador.nome if o.colaborador else '' }}"
                   data-orcado="{{ o.valor_orcado }}"
-                  data-bs-toggle="modal" data-bs-target="#modalConcluirOS">
+                  data-bs-toggle="modal" data-bs-target="#modalConcluirOS" title="Concluir Ordem">
                   <i class="bi bi-check2-circle"></i> Concluir
                 </button>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-custom dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                      <button type="button" class="dropdown-item btn-editar-os"
+                        data-id="{{ o.id }}"
+                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }} ({{ o.dispositivo.identificador }})"
+                        data-forn="{{ o.fornecedor_id }}"
+                        data-colab="{{ o.colaborador_id or '' }}"
+                        data-data-envio="{{ o.data_envio.strftime('%Y-%m-%d') if o.data_envio else '' }}"
+                        data-defeito="{{ o.defeito }}"
+                        data-status="{{ o.status }}"
+                        data-orcado="{{ o.valor_orcado }}"
+                        data-valor-final="{{ o.valor_final }}"
+                        data-data-retorno="{{ o.data_retorno.strftime('%Y-%m-%d') if o.data_retorno else '' }}"
+                        data-causa="{{ o.causa or '' }}"
+                        data-resp="{{ o.responsavel_custo }}"
+                        data-val-colab="{{ o.valor_colaborador }}"
+                        data-laudo="{{ o.laudo or '' }}"
+                        data-obs="{{ o.observacoes or '' }}"
+                        data-bs-toggle="modal" data-bs-target="#modalEditarOS">
+                        <i class="bi bi-pencil me-2 text-primary"></i> Editar Dados da OS
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li>
+                      <button type="button" class="dropdown-item text-danger btn-excluir-os"
+                        data-id="{{ o.id }}"
+                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
+                        data-bs-toggle="modal" data-bs-target="#modalExcluirOS">
+                        <i class="bi bi-trash3 text-danger me-2"></i> Cancelar / Excluir OS
+                      </button>
+                    </li>
+                  </ul>
+                </div>
               </div>
             {% else %}
-              <a href="{{ url_for('historico_dispositivo', id=o.dispositivo.id) }}" class="btn btn-sm btn-outline-custom" title="Ver Histórico">
-                <i class="bi bi-eye"></i>
-              </a>
+              <div class="d-flex justify-content-end align-items-center gap-1">
+                <form action="{{ url_for('desfazer_conclusao_ordem', id=o.id) }}" method="POST" class="d-inline" onsubmit="return confirm('Deseja realmente desfazer a conclusão da OS #{{ o.id }}? O aparelho retornará para o status Na Assistência e eventuais vales serão cancelados.');">
+                  <button type="submit" class="btn btn-sm btn-outline-warning" title="Desfazer Conclusão (Reabrir OS)">
+                    <i class="bi bi-arrow-counterclockwise"></i> Desfazer
+                  </button>
+                </form>
+                <a href="{{ url_for('historico_dispositivo', id=o.dispositivo.id) }}" class="btn btn-sm btn-outline-custom" title="Ver Histórico do Dispositivo">
+                  <i class="bi bi-eye"></i>
+                </a>
+                <div class="dropdown">
+                  <button class="btn btn-sm btn-outline-custom dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="bi bi-three-dots-vertical"></i>
+                  </button>
+                  <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                    <li>
+                      <button type="button" class="dropdown-item btn-editar-os"
+                        data-id="{{ o.id }}"
+                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }} ({{ o.dispositivo.identificador }})"
+                        data-forn="{{ o.fornecedor_id }}"
+                        data-colab="{{ o.colaborador_id or '' }}"
+                        data-data-envio="{{ o.data_envio.strftime('%Y-%m-%d') if o.data_envio else '' }}"
+                        data-defeito="{{ o.defeito }}"
+                        data-status="{{ o.status }}"
+                        data-orcado="{{ o.valor_orcado }}"
+                        data-valor-final="{{ o.valor_final }}"
+                        data-data-retorno="{{ o.data_retorno.strftime('%Y-%m-%d') if o.data_retorno else '' }}"
+                        data-causa="{{ o.causa or '' }}"
+                        data-resp="{{ o.responsavel_custo }}"
+                        data-val-colab="{{ o.valor_colaborador }}"
+                        data-laudo="{{ o.laudo or '' }}"
+                        data-obs="{{ o.observacoes or '' }}"
+                        data-bs-toggle="modal" data-bs-target="#modalEditarOS">
+                        <i class="bi bi-pencil me-2 text-primary"></i> Editar Dados da OS
+                      </button>
+                    </li>
+                    <li><hr class="dropdown-divider my-1"></li>
+                    <li>
+                      <button type="button" class="dropdown-item text-danger btn-excluir-os"
+                        data-id="{{ o.id }}"
+                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
+                        data-bs-toggle="modal" data-bs-target="#modalExcluirOS">
+                        <i class="bi bi-trash3 text-danger me-2"></i> Excluir Registro da OS
+                      </button>
+                    </li>
+                  </ul>
+                </div>
+              </div>
             {% endif %}
           </td>
         </tr>
@@ -314,6 +395,153 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL: EDITAR ORDEM DE SERVIÇO (COMPLETO) -->
+<div class="modal fade" id="modalEditarOS" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
+      <form id="formEditarOS" method="POST">
+        <div class="modal-header bg-dark text-white p-3 px-4" style="background-color: #0f172a !important;">
+          <h5 class="modal-title fw-bold"><i class="bi bi-pencil-square text-primary me-2"></i>Editar Ordem de Serviço</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <div class="alert alert-light border small py-2 px-3 mb-3 d-flex align-items-center gap-2">
+            <i class="bi bi-phone text-primary fs-5"></i>
+            <div>
+              <span class="text-muted d-block small">Dispositivo em Manutenção:</span>
+              <strong id="edit_disp_nome" class="text-dark"></strong>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-secondary">Assistência Técnica / Fornecedor</label>
+              <select name="fornecedor_id" id="edit_fornecedor_id" class="form-select" required>
+                {% for f in fornecedores %}
+                <option value="{{ f.id }}">{{ f.nome }} ({{ f.tipo|capitalize }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-secondary">Colaborador Portador (Opcional)</label>
+              <select name="colaborador_id" id="edit_colaborador_id" class="form-select">
+                <option value="">Sem colaborador vinculado</option>
+                {% for c in colaboradores %}
+                <option value="{{ c.id }}">{{ c.nome }} ({{ c.setor }})</option>
+                {% endfor %}
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small text-secondary">Data de Envio</label>
+              <input type="date" name="data_envio" id="edit_data_envio" class="form-control" required>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small text-secondary">Status da OS</label>
+              <select name="status" id="edit_status" class="form-select" required>
+                <option value="enviado">Enviado</option>
+                <option value="em_analise">Em Análise</option>
+                <option value="orcamento_aprovado">Orçamento Aprovado</option>
+                <option value="em_reparo">Em Reparo</option>
+                <option value="pronto">Pronto (Aguardando Retirada)</option>
+                <option value="devolvido">Devolvido (Concluído)</option>
+                <option value="sem_conserto">Sem Conserto (Baixado)</option>
+              </select>
+            </div>
+
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small text-secondary">Data de Retorno</label>
+              <input type="date" name="data_retorno" id="edit_data_retorno" class="form-control">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-secondary">Defeito Informado</label>
+              <input type="text" name="defeito" id="edit_defeito" class="form-control" required>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-secondary">Valor Orçado (R$)</label>
+              <input type="number" step="0.01" name="valor_orcado" id="edit_valor_orcado" class="form-control" placeholder="0,00">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-secondary">Valor Final Cobrado (R$)</label>
+              <input type="number" step="0.01" name="valor_final" id="edit_valor_final" class="form-control" placeholder="0,00">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-secondary">Diagnóstico / Causa</label>
+              <select name="causa" id="edit_causa" class="form-select">
+                <option value="">Aguardando Laudo...</option>
+                <option value="desgaste_natural">Desgaste Natural do Aparelho</option>
+                <option value="defeito_fabricacao">Defeito de Fabricação / Vício Oculto</option>
+                <option value="mau_uso">Mau Uso / Danos Físicos</option>
+                <option value="acidente_queda">Acidente / Queda Acidental</option>
+                <option value="outro">Outro Diagnóstico</option>
+              </select>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label fw-semibold small text-secondary">Quem arca com o custo?</label>
+              <select name="responsavel_custo" id="edit_responsavel_custo" class="form-select" onchange="toggleEditValorMisto()">
+                <option value="empresa">Empresa arca com 100%</option>
+                <option value="colaborador">Colaborador arca com 100% (Gera Vale)</option>
+                <option value="misto">Divisão Mista (Empresa + Colaborador)</option>
+              </select>
+            </div>
+
+            <div class="col-md-6" id="div_edit_valor_colab" style="display: none;">
+              <label class="form-label text-danger fw-bold small">Valor ao Colaborador (R$)</label>
+              <input type="number" step="0.01" name="valor_colaborador" id="edit_valor_colaborador" class="form-control" placeholder="0,00">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-secondary">Laudo Técnico da Assistência</label>
+              <textarea name="laudo" id="edit_laudo" class="form-control" rows="2" placeholder="Peças substituídas, testes realizados..."></textarea>
+            </div>
+
+            <div class="col-12">
+              <label class="form-label fw-semibold small text-secondary">Observações Internas</label>
+              <textarea name="observacoes" id="edit_observacoes" class="form-control" rows="2" placeholder="Notas da equipe de TI..."></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary-cobalt">Salvar Alterações da OS</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EXCLUIR / CANCELAR OS -->
+<div class="modal fade" id="modalExcluirOS" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="formExcluirOS" method="POST">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-trash3-fill me-2"></i>Cancelar / Excluir OS</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="mb-2">Tem certeza de que deseja excluir o registro da <strong id="osExcluirTitulo" class="text-danger"></strong>?</p>
+          <div class="alert alert-warning small mb-0">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            O dispositivo será liberado de volta ao estoque/uso e eventuais vales de RH gerados por esta OS serão removidos.
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+          <button type="submit" class="btn btn-danger btn-sm">Confirmar Exclusão</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -339,6 +567,50 @@
       ajustarResponsabilidade();
     });
   });
+
+  // Script para modal de edição de OS
+  document.querySelectorAll('.btn-editar-os').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      document.getElementById('formEditarOS').action = `/ordens/${id}/editar`;
+      document.getElementById('edit_disp_nome').textContent = this.getAttribute('data-disp');
+      document.getElementById('edit_fornecedor_id').value = this.getAttribute('data-forn');
+      document.getElementById('edit_colaborador_id').value = this.getAttribute('data-colab') || '';
+      document.getElementById('edit_data_envio').value = this.getAttribute('data-data-envio');
+      document.getElementById('edit_defeito').value = this.getAttribute('data-defeito');
+      document.getElementById('edit_status').value = this.getAttribute('data-status');
+      document.getElementById('edit_valor_orcado').value = this.getAttribute('data-orcado') || '';
+      document.getElementById('edit_valor_final').value = this.getAttribute('data-valor-final') || '';
+      document.getElementById('edit_data_retorno').value = this.getAttribute('data-data-retorno') || '';
+      document.getElementById('edit_causa').value = this.getAttribute('data-causa') || '';
+      document.getElementById('edit_responsavel_custo').value = this.getAttribute('data-resp') || 'empresa';
+      document.getElementById('edit_valor_colaborador').value = this.getAttribute('data-val-colab') || '';
+      document.getElementById('edit_laudo').value = this.getAttribute('data-laudo') || '';
+      document.getElementById('edit_observacoes').value = this.getAttribute('data-obs') || '';
+      toggleEditValorMisto();
+    });
+  });
+
+  // Script para modal de exclusão de OS
+  document.querySelectorAll('.btn-excluir-os').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      const disp = this.getAttribute('data-disp');
+      document.getElementById('formExcluirOS').action = `/ordens/${id}/excluir`;
+      document.getElementById('osExcluirTitulo').textContent = `OS #${id} (${disp})`;
+    });
+  });
+
+  function toggleEditValorMisto() {
+    const resp = document.getElementById('edit_responsavel_custo').value;
+    const divColab = document.getElementById('div_edit_valor_colab');
+    if (resp === 'misto' || resp === 'colaborador') {
+      divColab.style.display = 'block';
+    } else {
+      divColab.style.display = 'none';
+      document.getElementById('edit_valor_colaborador').value = '0';
+    }
+  }
 
   function ajustarResponsabilidade() {
     const causa = document.getElementById('concluir_causa').value;

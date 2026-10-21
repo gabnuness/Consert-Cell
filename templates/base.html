@@ -98,14 +98,24 @@
 
       <!-- Rodapé da Sidebar: Perfil & Sair -->
       <div class="sidebar-footer">
-        <div class="user-profile-box">
-          <div class="user-avatar-circle">TI</div>
+        <div class="user-profile-box" role="button" data-bs-toggle="modal" data-bs-target="#modalPerfilAdmin" title="Configurações da Conta & Segurança">
+          <div class="user-avatar-circle">
+            {% if current_user.is_authenticated and current_user.nome %}
+              {{ current_user.nome[:2]|upper }}
+            {% else %}
+              TI
+            {% endif %}
+          </div>
           <div class="user-meta">
-            <span class="user-name">Administrador TI</span>
-            <span class="user-subtitle">Ambev Disfonte</span>
+            <span class="user-name text-truncate d-block" style="max-width: 125px;">
+              {{ current_user.nome if current_user.is_authenticated else 'Administrador TI' }}
+            </span>
+            <span class="user-subtitle text-truncate d-block" style="max-width: 125px;">
+              {{ current_user.email if current_user.is_authenticated else 'Ambev Disfonte' }}
+            </span>
           </div>
         </div>
-        <a href="#" class="btn-logout" title="Sessão local ativa" onclick="event.preventDefault(); alert('Sessão local ativa da TI Disfonte.');">
+        <a href="{{ url_for('logout') }}" class="btn-logout" title="Sair do Sistema">
           <i class="bi bi-box-arrow-right"></i>
         </a>
       </div>
@@ -148,6 +158,153 @@
     </div>
   </div>
 
+  <!-- MODAL: PERFIL, SEGURANÇA E API DO ADMINISTRADOR -->
+  <div class="modal fade" id="modalPerfilAdmin" tabindex="-1" aria-labelledby="modalPerfilAdminLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content border-0 shadow-lg" style="border-radius: 14px; overflow: hidden;">
+        <div class="modal-header bg-dark text-white p-3 px-4" style="background-color: #0f172a !important;">
+          <div class="d-flex align-items-center gap-2">
+            <div class="user-avatar-circle" style="width: 38px; height: 38px; font-size: 0.9rem;">
+              {% if current_user.is_authenticated and current_user.nome %}
+                {{ current_user.nome[:2]|upper }}
+              {% else %}
+                TI
+              {% endif %}
+            </div>
+            <div>
+              <h5 class="modal-title fw-bold mb-0" id="modalPerfilAdminLabel">Conta &amp; Segurança &bull; Admin TI</h5>
+              <span class="text-secondary small">Ambev Disfonte &bull; Acesso Restrito</span>
+            </div>
+          </div>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body p-0">
+          <!-- Abas de Navegação -->
+          <ul class="nav nav-tabs px-4 pt-3 bg-light border-bottom" id="adminTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active fw-semibold text-dark" id="tab-perfil" data-bs-toggle="tab" data-bs-target="#content-perfil" type="button" role="tab">
+                <i class="bi bi-person-gear me-1 text-primary"></i> Perfil &amp; E-mail
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link fw-semibold text-dark" id="tab-senha" data-bs-toggle="tab" data-bs-target="#content-senha" type="button" role="tab">
+                <i class="bi bi-shield-lock me-1 text-warning"></i> Alterar Senha
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link fw-semibold text-dark" id="tab-api" data-bs-toggle="tab" data-bs-target="#content-api" type="button" role="tab">
+                <i class="bi bi-code-slash me-1 text-success"></i> API &amp; Token
+              </button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link fw-semibold text-danger" id="tab-zerar" data-bs-toggle="tab" data-bs-target="#content-zerar" type="button" role="tab">
+                <i class="bi bi-trash3 me-1 text-danger"></i> Zerar Banco
+              </button>
+            </li>
+          </ul>
+
+          <div class="tab-content p-4" id="adminTabsContent">
+            <!-- ABA 1: DADOS DO PERFIL E E-MAIL -->
+            <div class="tab-pane fade show active" id="content-perfil" role="tabpanel">
+              <form action="{{ url_for('atualizar_perfil') }}" method="POST">
+                <p class="text-muted small mb-3">Mantenha seu nome e e-mail corporativo atualizados para segurança do acesso.</p>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small text-secondary">NOME DO ADMINISTRADOR</label>
+                  <input type="text" name="nome" class="form-control" value="{{ current_user.nome if current_user.is_authenticated else '' }}" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small text-secondary">E-MAIL VINCULADO (LOGIN)</label>
+                  <input type="email" name="email" class="form-control" value="{{ current_user.email if current_user.is_authenticated else '' }}" required>
+                  <div class="form-text">Este e-mail é utilizado para efetuar login seguro no sistema.</div>
+                </div>
+                <div class="text-end mt-4">
+                  <button type="submit" class="btn btn-primary-cobalt">Salvar Dados do Perfil</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- ABA 2: ALTERAR SENHA -->
+            <div class="tab-pane fade" id="content-senha" role="tabpanel">
+              <form action="{{ url_for('alterar_senha') }}" method="POST">
+                <p class="text-muted small mb-3">Defina uma senha forte de no mínimo 6 caracteres.</p>
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small text-secondary">SENHA ATUAL</label>
+                  <input type="password" name="senha_atual" class="form-control" placeholder="••••••••" required>
+                </div>
+                <div class="row g-2 mb-3">
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold small text-secondary">NOVA SENHA</label>
+                    <input type="password" name="nova_senha" class="form-control" placeholder="Mínimo 6 caracteres" required minlength="6">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold small text-secondary">CONFIRMAR NOVA SENHA</label>
+                    <input type="password" name="confirmar_senha" class="form-control" placeholder="Repita a nova senha" required minlength="6">
+                  </div>
+                </div>
+                <div class="text-end mt-4">
+                  <button type="submit" class="btn btn-primary-cobalt">Atualizar Senha</button>
+                </div>
+              </form>
+            </div>
+
+            <!-- ABA 3: API REST & BEARER TOKEN -->
+            <div class="tab-pane fade" id="content-api" role="tabpanel">
+              <div class="alert alert-info py-2 px-3 small d-flex align-items-center gap-2 mb-3">
+                <i class="bi bi-info-circle-fill fs-5"></i>
+                <div>
+                  Você pode integrar scripts em Python, PowerShell ou sistemas externos com o endpoint JSON de autenticação.
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <label class="form-label fw-semibold small text-secondary">SEU TOKEN BEARER DE API</label>
+                <div class="input-group">
+                  <input type="text" id="apiTokenInput" class="form-control font-monospace text-primary bg-light" readonly value="{{ current_user.token_api if current_user.is_authenticated and current_user.token_api else 'Nenhum token ativo' }}">
+                  <button class="btn btn-outline-secondary" type="button" id="btnCopiarToken" title="Copiar Token">
+                    <i class="bi bi-clipboard" id="iconCopiar"></i> Copiar
+                  </button>
+                </div>
+              </div>
+
+              <div class="card bg-light border p-3 mb-3">
+                <span class="small fw-bold text-dark d-block mb-1">Como utilizar na API:</span>
+                <code class="small d-block text-secondary">POST http://127.0.0.1:5000/api/auth/login</code>
+                <code class="small d-block text-secondary">GET  http://127.0.0.1:5000/api/auth/me (Header: Authorization: Bearer &lt;TOKEN&gt;)</code>
+              </div>
+
+              <form action="{{ url_for('gerar_novo_token_api') }}" method="POST" class="text-end">
+                <button type="submit" class="btn btn-outline-secondary btn-sm" onclick="return confirm('Deseja realmente gerar um novo token de API? O anterior deixará de funcionar.');">
+                  <i class="bi bi-arrow-repeat me-1"></i> Gerar Novo Token
+                </button>
+              </form>
+            </div>
+
+            <!-- ABA 4: ZERAR BANCO (LIMPEZA DE DADOS DE TESTE) -->
+            <div class="tab-pane fade" id="content-zerar" role="tabpanel">
+              <div class="alert alert-danger p-3 small mb-3">
+                <h6 class="fw-bold mb-1"><i class="bi bi-exclamation-triangle-fill me-2"></i>Atenção: Ação Irreversível!</h6>
+                Esta opção apaga todos os colaboradores, fornecedores, dispositivos, ordens de serviço, vales e histórico de estoque. O seu usuário administrador continuará preservado para você começar sua operação real com o banco totalmente limpo.
+              </div>
+
+              <form action="{{ url_for('zerar_banco') }}" method="POST">
+                <div class="mb-3">
+                  <label class="form-label fw-semibold small text-danger">DIGITE "CONFIRMAR EXCLUSÃO" PARA LIBERAR:</label>
+                  <input type="text" name="confirmacao" class="form-control border-danger" placeholder="CONFIRMAR EXCLUSÃO" required>
+                </div>
+                <div class="text-end">
+                  <button type="submit" class="btn btn-danger btn-sm">
+                    <i class="bi bi-trash3-fill me-1"></i> Zerar Banco Operacional
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Overlay para Mobile quando sidebar aberta -->
   <div class="sidebar-overlay d-lg-none" id="sidebarOverlay"></div>
 
@@ -169,6 +326,26 @@
       overlay.addEventListener('click', () => {
         sidebar.classList.remove('open');
         overlay.classList.remove('visible');
+      });
+    }
+
+    // Copiar Token de API
+    const btnCopiar = document.getElementById('btnCopiarToken');
+    const inputToken = document.getElementById('apiTokenInput');
+    const iconCopiar = document.getElementById('iconCopiar');
+    if (btnCopiar && inputToken) {
+      btnCopiar.addEventListener('click', () => {
+        inputToken.select();
+        navigator.clipboard.writeText(inputToken.value).then(() => {
+          btnCopiar.classList.remove('btn-outline-secondary');
+          btnCopiar.classList.add('btn-success');
+          btnCopiar.innerHTML = '<i class="bi bi-check2"></i> Copiado!';
+          setTimeout(() => {
+            btnCopiar.classList.remove('btn-success');
+            btnCopiar.classList.add('btn-outline-secondary');
+            btnCopiar.innerHTML = '<i class="bi bi-clipboard"></i> Copiar';
+          }, 2000);
+        });
       });
     }
   </script>

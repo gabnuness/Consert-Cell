@@ -155,6 +155,17 @@
               <i class="bi bi-pencil text-secondary me-2"></i> Editar Dados
             </button>
           </li>
+          <li><hr class="dropdown-divider my-1"></li>
+          <li>
+            <button type="button" class="dropdown-item text-danger btn-excluir-disp"
+              data-id="{{ d.id }}"
+              data-nome="{{ d.marca }} {{ d.modelo }} ({{ d.identificador }})"
+              data-ordens="{{ d.ordens|length }}"
+              data-saidas="{{ d.saidas_acessorios|length }}"
+              data-bs-toggle="modal" data-bs-target="#modalExcluirDispositivo">
+              <i class="bi bi-trash3 text-danger me-2"></i> Excluir Aparelho
+            </button>
+          </li>
         </ul>
       </div>
     </div>
@@ -357,10 +368,42 @@
     </div>
   </div>
 </div>
+
+<!-- MODAL: EXCLUIR DISPOSITIVO -->
+<div class="modal fade" id="modalExcluirDispositivo" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <form id="formExcluirDispositivo" method="POST">
+        <div class="modal-header bg-danger text-white">
+          <h5 class="modal-title fw-bold"><i class="bi bi-trash3-fill me-2"></i>Excluir Dispositivo</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body p-4">
+          <p class="mb-2">Tem certeza de que deseja remover permanentemente o aparelho <strong id="dispNomeExcluir" class="text-danger"></strong>?</p>
+          <div id="dispAvisoVinculos" class="alert alert-warning small d-none">
+            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+            <span id="dispTextoVinculos"></span>
+          </div>
+          <div class="form-check mt-3">
+            <input class="form-check-input" type="checkbox" name="forcar" value="1" id="checkForcarDisp">
+            <label class="form-check-label small text-secondary" for="checkForcarDisp">
+              Confirmar exclusão mesmo com ordens de serviço ou movimentações vinculadas (limpar histórico).
+            </label>
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-danger btn-sm">Confirmar Exclusão</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
 <script>
+  // Editar Dispositivo
   document.querySelectorAll('.btn-editar').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
@@ -376,6 +419,32 @@
       document.getElementById('edit_colaborador').value = this.getAttribute('data-colaborador');
       document.getElementById('edit_status').value = this.getAttribute('data-status');
       document.getElementById('edit_obs').value = this.getAttribute('data-obs');
+    });
+  });
+
+  // Excluir Dispositivo
+  document.querySelectorAll('.btn-excluir-disp').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      const nome = this.getAttribute('data-nome');
+      const ordens = parseInt(this.getAttribute('data-ordens') || '0');
+      const saidas = parseInt(this.getAttribute('data-saidas') || '0');
+
+      document.getElementById('formExcluirDispositivo').action = `/dispositivos/${id}/excluir`;
+      document.getElementById('dispNomeExcluir').textContent = nome;
+
+      const aviso = document.getElementById('dispAvisoVinculos');
+      const texto = document.getElementById('dispTextoVinculos');
+      const check = document.getElementById('checkForcarDisp');
+
+      if (ordens > 0 || saidas > 0) {
+        aviso.classList.remove('d-none');
+        texto.textContent = `Este aparelho possui ${ordens} OS(s) e ${saidas} movimentações de estoque registradas.`;
+        check.checked = true;
+      } else {
+        aviso.classList.add('d-none');
+        check.checked = false;
+      }
     });
   });
 </script>

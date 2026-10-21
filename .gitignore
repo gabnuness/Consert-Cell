@@ -32,6 +32,7 @@ venv.bak/
 *.db
 *.sqlite
 instance/
+backups_banco/
 
 # Environment Variables & Secrets
 .env

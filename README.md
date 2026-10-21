@@ -14,39 +14,49 @@
 
 ## 🌟 Principais Recursos
 
-- **Gestão de Dispositivos:**
-  - Cadastro de celulares e tablets com suporte a IMEI, número de série e número de patrimônio.
-  - Vínculo direto com colaboradores e setores da empresa.
-  - **Índice de Inviabilidade ("Aparelho Bomba"):** Alerta automático quando o somatório de manutenções ultrapassa 50% do valor de aquisição do aparelho, recomendando substituição.
-  - Histórico e linha do tempo completa por dispositivo.
+- **Segurança & Autenticação Administrativa:**
+  - Sistema de login com proteção de rotas (`Flask-Login` e senhas criptografadas com `Bcrypt`).
+  - **API REST JSON Integrada:** Autenticação via `POST /api/auth/login`, endpoints protegidos via `Bearer Token` (`GET /api/auth/me`), atualização de perfil e geração de novos tokens.
+  - Modal administrativo para gerenciamento de credenciais (e-mail, nome, senha e chave de API) e limpeza operacional (*Zerar Banco*).
 
-- **Ordens de Serviço (OS):**
-  - Acompanhamento do ciclo de vida: *Enviado → Em análise → Orçamento aprovado → Em reparo → Pronto → Devolvido / Baixado*.
-  - **Contador Dinâmico de SLA:** Alertas visuais para aparelhos parados há mais de 7 dias (atenção) e mais de 15 dias (crítico).
-  - **Alerta de Reincidência e Garantia:** Alerta automático caso um aparelho dê defeito dentro de 90 dias após o último retorno da assistência técnica.
-  - **Classificação de Causa e Laudo Técnico:** Classificação entre desgaste natural, defeito de fabricação, mau uso ou queda.
+- **Gestão de Dispositivos & Equipamentos:**
+  - Cadastro de celulares, tablets e coletores industriais com suporte a IMEI, número de série e número de patrimônio.
+  - Vínculo com colaboradores e setores da empresa.
+  - **Índice de Inviabilidade ("Aparelho Bomba"):** Alerta automático quando o somatório de manutenções ultrapassa 50% do valor de aquisição do aparelho.
+  - **Função de Exclusão Segura:** Exclusão com confirmação e opção de limpeza de vínculos/histórico.
+
+- **Ordens de Serviço (OS) com Edição e Desfazer:**
+  - Ciclo de vida completo: *Enviado → Em análise → Orçamento aprovado → Em reparo → Pronto → Devolvido / Sem conserto*.
+  - **Edição Completa de OS:** Permite editar dados de qualquer OS (técnico, fornecedor, datas, orçamento, laudo e valores).
+  - **Desfazer Conclusão:** Reabre ordens finalizadas por engano, retornando o aparelho para manutenção e revertendo automaticamente vales de RH gerados.
+  - **Exclusão de OS:** Cancelamento definitivo com liberação do aparelho e cancelamento de vales.
+  - **Contador Dinâmico de SLA:** Alertas visuais para aparelhos parados há mais de 7 dias (alerta) e mais de 15 dias (crítico).
+  - **Alerta de Reincidência e Garantia:** Alerta automático para aparelhos que apresentem defeito em menos de 90 dias após o retorno.
 
 - **Cálculo de Custos e Vales (RH / Departamento Pessoal):**
   - Separação automatizada entre **Custo da Empresa** e **Valor a Descontar do Colaborador**.
-  - Se a causa for *Mau Uso* ou *Perda*, o sistema gera automaticamente um **Vale** pendente de desconto em folha de pagamento.
-  - Painel dedicado com status dos vales: *Pendente → Emitido → Descontado → Cancelado*.
+  - Geração automática de **Vales** de desconto em folha em casos de mau uso ou perda de acessórios.
+  - Painel com acompanhamento de status: *Pendente → Emitido → Descontado → Cancelado*.
 
 - **Controle de Estoque de Acessórios:**
   - Gerenciamento de películas, capas, carregadores e cabos.
   - **Custo Médio Ponderado:** Recalculado automaticamente a cada nova compra.
   - Alerta imediato de reposição quando o saldo atinge o estoque mínimo.
-  - Saídas com motivos rastreáveis (*Novo, Reposição, Quebra ou Perda com opção de vale*).
+  - Exclusão e controle de saídas rastreáveis.
+
+- **Alternância de Bancos (Produção Real vs. LinkedIn / Demo):**
+  - Scripts inclusos para backup online seguro (`consertcell_PRODUCAO_REAL.db`), restauração com 1 clique (`restaurar_banco_real.py`) e carga de modelo genérico para apresentações (`carregar_banco_linkedin.py`).
 
 - **Exportação e Relatórios:**
-  - Exportação em **Excel (.xlsx)** consolidado com um clique, contendo abas formatadas para Ordens de Serviço, Dispositivos, Vales e Estoque.
+  - Exportação em **Excel (.xlsx)** consolidado com abas formatadas para Ordens de Serviço, Dispositivos, Vales e Estoque.
 
 ---
 
 ## 🛠️ Tecnologias Utilizadas
 
-- **Back-end:** Python 3.10+, Flask 3.0, Flask-SQLAlchemy, OpenPyXL.
-- **Banco de Dados:** SQLite (arquivo único local, de fácil backup e sem necessidade de servidor dedicado).
-- **Front-end:** HTML5 semântico, Vanilla CSS customizado (design system com paleta Slate/Indigo), Bootstrap 5.3, Bootstrap Icons e Chart.js.
+- **Back-end:** Python 3.10+, Flask 3.0, Flask-SQLAlchemy, Flask-Login, Flask-Bcrypt, OpenPyXL.
+- **Banco de Dados:** SQLite (arquivo local, com backup online nativo).
+- **Front-end:** HTML5 semântico, Vanilla CSS customizado (design system com paleta Ambev Disfonte Slate/Cobalt), Bootstrap 5.3, Bootstrap Icons e Chart.js.
 
 ---
 

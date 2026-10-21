@@ -1,7 +1,40 @@
 from datetime import date
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin
 
 db = SQLAlchemy()
+
+
+# ==========================================
+# MODELO DE AUTENTICAÇÃO (ADMIN ÚNICO)
+# ==========================================
+class AdminUser(UserMixin, db.Model):
+    """Usuário administrador único do sistema TI Disfonte."""
+    __tablename__ = 'admin_users'
+
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(120), unique=True, nullable=False)
+    nome = db.Column(db.String(100), nullable=False, default='Gabriel Nunes (Admin TI)')
+    senha_hash = db.Column(db.String(256), nullable=False)
+    token_api = db.Column(db.String(64), unique=True, nullable=True)
+    lembrar_token = db.Column(db.String(256), nullable=True)  # para "lembrar de mim"
+    ultimo_login = db.Column(db.DateTime, nullable=True)
+    ativo = db.Column(db.Boolean, default=True)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'email': self.email,
+            'nome': self.nome,
+            'ultimo_login': self.ultimo_login.strftime('%d/%m/%Y %H:%M:%S') if self.ultimo_login else None,
+            'ativo': self.ativo,
+            'token_api': self.token_api
+        }
+
+    def __repr__(self):
+        return f'<Admin {self.email}>'
+
+
 
 class Colaborador(db.Model):
     __tablename__ = 'colaboradores'
