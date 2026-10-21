@@ -8,6 +8,7 @@ def app():
     """Cria uma instância isolada da aplicação para testes com SQLite em memória."""
     flask_app.config.update({
         "TESTING": True,
+        "LOGIN_DISABLED": True,
         "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
         "WTF_CSRF_ENABLED": False
     })
