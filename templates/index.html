@@ -120,7 +120,7 @@
         <strong class="d-block">Aparelhos parados há +15 dias:</strong>
         <ul class="mb-0 ps-3 small mt-1">
           {% for o in os_atrasadas_criticas %}
-            <li>OS #{{ o.id }} - {{ o.dispositivo.marca if o.dispositivo else 'Aparelho' }} {{ o.dispositivo.modelo if o.dispositivo else '' }} ({{ o.dias_fora }} dias fora)</li>
+            <li>OS #{{ o.id }} - {{ ('[Particular] ' ~ (o.aparelho_particular or 'Celular')) if o.is_particular else (o.dispositivo.marca ~ ' ' ~ o.dispositivo.modelo if o.dispositivo else 'Aparelho') }} ({{ o.dias_fora }} dias fora)</li>
           {% endfor %}
         </ul>
       </div>
@@ -204,8 +204,18 @@
             <tr>
               <td><strong>#{{ o.id }}</strong></td>
               <td>
-                <div class="fw-semibold">{{ o.dispositivo.marca if o.dispositivo else 'Dispositivo' }} {{ o.dispositivo.modelo if o.dispositivo else '' }}</div>
-                <div class="text-muted small">{{ o.dispositivo.identificador if o.dispositivo else '-' }}</div>
+                {% if o.is_particular %}
+                  <div class="fw-semibold text-dark">
+                    <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle me-1">Particular</span>
+                    {{ o.aparelho_particular or 'Celular Particular' }}
+                  </div>
+                  <div class="text-muted small">{{ o.colaborador.nome if o.colaborador else 'Desconto em Folha' }}</div>
+                {% elif o.dispositivo %}
+                  <div class="fw-semibold">{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}</div>
+                  <div class="text-muted small">{{ o.dispositivo.identificador }}</div>
+                {% else %}
+                  <div class="fw-semibold text-muted">Aparelho Desvinculado</div>
+                {% endif %}
               </td>
               <td>{{ o.fornecedor.nome if o.fornecedor else '-' }}</td>
               <td>

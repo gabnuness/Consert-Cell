@@ -5,7 +5,10 @@ from models import db, Colaborador, Fornecedor, Dispositivo, Acessorio, OrdemAss
 
 @pytest.fixture
 def app():
-    """Cria uma instância isolada da aplicação para testes com SQLite em memória."""
+    """Cria uma instância isolada da aplicação para testes com SQLite em memória real (StaticPool)."""
+    from sqlalchemy import create_engine
+    from sqlalchemy.pool import StaticPool
+
     flask_app.config.update({
         "TESTING": True,
         "LOGIN_DISABLED": True,
@@ -13,11 +16,24 @@ def app():
         "WTF_CSRF_ENABLED": False
     })
 
+    sa = flask_app.extensions['sqlalchemy']
+    orig_engines = sa._app_engines.get(flask_app)
+
+    test_engine = create_engine(
+        'sqlite://',
+        connect_args={'check_same_thread': False},
+        poolclass=StaticPool
+    )
+    sa._app_engines[flask_app] = {None: test_engine}
+
     with flask_app.app_context():
         db.create_all()
         yield flask_app
         db.session.remove()
         db.drop_all()
+
+    if orig_engines:
+        sa._app_engines[flask_app] = orig_engines
 
 @pytest.fixture
 def client(app):

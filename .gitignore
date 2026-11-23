@@ -13,7 +13,6 @@ lib/
 lib64/
 parts/
 sdist/
-var/
 wheels/
 *.egg-info/
 .installed.cfg
@@ -27,12 +26,15 @@ ENV/
 env.bak/
 venv.bak/
 
-# SQLite / Database
+# SQLite / Database & Arquivos Locais Seguros
 *.sqlite3
 *.db
 *.sqlite
 instance/
 backups_banco/
+banco_real_salvo/
+scripts_locais/
+colaboradores_comercial.db
 
 # Environment Variables & Secrets
 .env
@@ -53,5 +55,6 @@ desktop.ini
 
 # Testing & Coverage
 .pytest_cache/
+.ruff_cache/
 .coverage
 htmlcov/

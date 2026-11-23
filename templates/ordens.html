@@ -52,8 +52,20 @@
             <span class="text-muted small">{{ o.data_envio|data_br }}</span>
           </td>
           <td>
-            <div class="fw-semibold">{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}</div>
-            <div class="text-muted small font-monospace">{{ o.dispositivo.identificador }}</div>
+            {% if o.is_particular %}
+              <div class="fw-semibold text-dark">
+                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle me-1">
+                  <i class="bi bi-person-fill"></i> Particular
+                </span>
+                {{ o.aparelho_particular or 'Celular Particular' }}
+              </div>
+              <div class="text-muted small">Desconto em Folha</div>
+            {% elif o.dispositivo %}
+              <div class="fw-semibold">{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}</div>
+              <div class="text-muted small font-monospace">{{ o.dispositivo.identificador }}</div>
+            {% else %}
+              <div class="fw-semibold text-muted">Aparelho Desvinculado</div>
+            {% endif %}
             {% if o.colaborador %}
               <div class="small text-secondary"><i class="bi bi-person"></i> {{ o.colaborador.nome }}</div>
             {% endif %}
@@ -115,9 +127,10 @@
                 </button>
                 <button type="button" class="btn btn-sm btn-success btn-concluir"
                   data-id="{{ o.id }}"
-                  data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
+                  data-disp="{{ '[Particular] ' ~ (o.aparelho_particular or 'Celular') if o.is_particular else (o.dispositivo.marca ~ ' ' ~ o.dispositivo.modelo if o.dispositivo else 'Aparelho') }}"
                   data-colab="{{ o.colaborador.nome if o.colaborador else '' }}"
                   data-orcado="{{ o.valor_orcado }}"
+                  data-is-particular="{{ '1' if o.is_particular else '0' }}"
                   data-bs-toggle="modal" data-bs-target="#modalConcluirOS" title="Concluir Ordem">
                   <i class="bi bi-check2-circle"></i> Concluir
                 </button>
@@ -129,7 +142,9 @@
                     <li>
                       <button type="button" class="dropdown-item btn-editar-os"
                         data-id="{{ o.id }}"
-                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }} ({{ o.dispositivo.identificador }})"
+                        data-disp="{{ '[Particular] ' ~ (o.aparelho_particular or 'Celular') if o.is_particular else (o.dispositivo.marca ~ ' ' ~ o.dispositivo.modelo ~ ' (' ~ o.dispositivo.identificador ~ ')' if o.dispositivo else 'Aparelho') }}"
+                        data-is-particular="{{ '1' if o.is_particular else '0' }}"
+                        data-aparelho-particular="{{ o.aparelho_particular or '' }}"
                         data-forn="{{ o.fornecedor_id }}"
                         data-colab="{{ o.colaborador_id or '' }}"
                         data-data-envio="{{ o.data_envio.strftime('%Y-%m-%d') if o.data_envio else '' }}"
@@ -151,7 +166,7 @@
                     <li>
                       <button type="button" class="dropdown-item text-danger btn-excluir-os"
                         data-id="{{ o.id }}"
-                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
+                        data-disp="{{ '[Particular] ' ~ (o.aparelho_particular or 'Celular') if o.is_particular else (o.dispositivo.marca ~ ' ' ~ o.dispositivo.modelo if o.dispositivo else 'Aparelho') }}"
                         data-bs-toggle="modal" data-bs-target="#modalExcluirOS">
                         <i class="bi bi-trash3 text-danger me-2"></i> Cancelar / Excluir OS
                       </button>
@@ -166,9 +181,11 @@
                     <i class="bi bi-arrow-counterclockwise"></i> Desfazer
                   </button>
                 </form>
+                {% if o.dispositivo %}
                 <a href="{{ url_for('historico_dispositivo', id=o.dispositivo.id) }}" class="btn btn-sm btn-outline-custom" title="Ver Histórico do Dispositivo">
                   <i class="bi bi-eye"></i>
                 </a>
+                {% endif %}
                 <div class="dropdown">
                   <button class="btn btn-sm btn-outline-custom dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
                     <i class="bi bi-three-dots-vertical"></i>
@@ -177,7 +194,9 @@
                     <li>
                       <button type="button" class="dropdown-item btn-editar-os"
                         data-id="{{ o.id }}"
-                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }} ({{ o.dispositivo.identificador }})"
+                        data-disp="{{ '[Particular] ' ~ (o.aparelho_particular or 'Celular') if o.is_particular else (o.dispositivo.marca ~ ' ' ~ o.dispositivo.modelo ~ ' (' ~ o.dispositivo.identificador ~ ')' if o.dispositivo else 'Aparelho') }}"
+                        data-is-particular="{{ '1' if o.is_particular else '0' }}"
+                        data-aparelho-particular="{{ o.aparelho_particular or '' }}"
                         data-forn="{{ o.fornecedor_id }}"
                         data-colab="{{ o.colaborador_id or '' }}"
                         data-data-envio="{{ o.data_envio.strftime('%Y-%m-%d') if o.data_envio else '' }}"
@@ -199,7 +218,7 @@
                     <li>
                       <button type="button" class="dropdown-item text-danger btn-excluir-os"
                         data-id="{{ o.id }}"
-                        data-disp="{{ o.dispositivo.marca }} {{ o.dispositivo.modelo }}"
+                        data-disp="{{ '[Particular] ' ~ (o.aparelho_particular or 'Celular') if o.is_particular else (o.dispositivo.marca ~ ' ' ~ o.dispositivo.modelo if o.dispositivo else 'Aparelho') }}"
                         data-bs-toggle="modal" data-bs-target="#modalExcluirOS">
                         <i class="bi bi-trash3 text-danger me-2"></i> Excluir Registro da OS
                       </button>
@@ -236,13 +255,18 @@
           <div class="row g-3">
             <div class="col-md-6">
               <label class="form-label">Dispositivo para Manutenção</label>
-              <select name="dispositivo_id" class="form-select" required>
+              <select name="dispositivo_id" id="nova_os_dispositivo_id" class="form-select" required onchange="toggleDispositivoParticular()">
                 <option value="">Selecione o aparelho...</option>
-                {% for d in dispositivos %}
-                  <option value="{{ d.id }}">
-                    {{ d.marca }} {{ d.modelo }} ({{ d.identificador }}) - Resp: {{ d.colaborador.nome if d.colaborador else 'TI' }}
-                  </option>
-                {% endfor %}
+                <optgroup label="Dispositivos Corporativos (Empresa)">
+                  {% for d in dispositivos %}
+                    <option value="{{ d.id }}">
+                      {{ d.marca }} {{ d.modelo }} ({{ d.identificador }}) - Resp: {{ d.colaborador.nome if d.colaborador else 'TI' }}
+                    </option>
+                  {% endfor %}
+                </optgroup>
+                <optgroup label="Aparelho Pessoal / Funcionário">
+                  <option value="particular" class="fw-bold text-primary">📱 Aparelho Particular (Desconto em Folha)</option>
+                </optgroup>
               </select>
             </div>
             <div class="col-md-6">
@@ -253,6 +277,32 @@
                   <option value="{{ f.id }}">{{ f.nome }}</option>
                 {% endfor %}
               </select>
+            </div>
+
+            <!-- Bloco Aparelho Particular (aparece ao selecionar "Aparelho Particular") -->
+            <div id="box_aparelho_particular" class="col-12 p-3 bg-light rounded border border-primary-subtle" style="display: none;">
+              <div class="d-flex align-items-center gap-2 mb-2 text-primary fw-bold">
+                <i class="bi bi-phone-fill fs-5"></i>
+                <span>Dados do Aparelho Particular do Colaborador</span>
+              </div>
+              <div class="row g-2">
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold small text-secondary">Colaborador Dono (Desconto em Folha) <span class="text-danger">*</span></label>
+                  <select name="colaborador_id_particular" id="colaborador_id_particular" class="form-select">
+                    <option value="">Selecione o colaborador...</option>
+                    {% for c in colaboradores %}
+                      <option value="{{ c.id }}">{{ c.nome }} ({{ c.setor }})</option>
+                    {% endfor %}
+                  </select>
+                </div>
+                <div class="col-md-6">
+                  <label class="form-label fw-semibold small text-secondary">Modelo / Descrição do Aparelho <span class="text-danger">*</span></label>
+                  <input type="text" name="aparelho_particular" id="aparelho_particular" class="form-control" placeholder="Ex: iPhone 13 128GB Preto, Galaxy S21...">
+                </div>
+              </div>
+              <div class="form-text mt-2 text-muted small">
+                <i class="bi bi-info-circle me-1"></i> O smartphone pertence ao funcionário. A empresa adianta o pagamento do reparo e o valor é lançado para desconto integral na folha (RH).
+              </div>
             </div>
 
             <div class="col-md-6">
@@ -329,8 +379,12 @@
         </div>
         <div class="modal-body">
           <div class="alert alert-light border p-3 mb-3">
-            <div><strong>Aparelho:</strong> <span id="concluir_disp"></span></div>
+            <div><strong>Aparelho:</strong> <span id="concluir_disp"></span> <span id="concluir_badge_particular" class="badge bg-info-subtle text-info-emphasis border border-info ms-2" style="display:none;"><i class="bi bi-person-fill"></i> Aparelho Particular</span></div>
             <div><strong>Colaborador:</strong> <span id="concluir_colab"></span></div>
+          </div>
+
+          <div id="concluir_alerta_particular" class="alert alert-info small py-2 px-3 mb-3" style="display:none;">
+            <i class="bi bi-info-circle-fill me-1"></i> <strong>Aparelho Particular:</strong> O valor total do conserto é configurado automaticamente para desconto na folha de pagamento do colaborador (geração de Vale).
           </div>
 
           <div class="row g-3">
@@ -412,6 +466,11 @@
               <span class="text-muted d-block small">Dispositivo em Manutenção:</span>
               <strong id="edit_disp_nome" class="text-dark"></strong>
             </div>
+          </div>
+
+          <div class="mb-3" id="div_edit_aparelho_particular" style="display: none;">
+            <label class="form-label fw-semibold small text-primary"><i class="bi bi-phone"></i> Descrição do Aparelho Particular</label>
+            <input type="text" name="aparelho_particular" id="edit_aparelho_particular" class="form-control" placeholder="Ex: iPhone 13 128GB Preto">
           </div>
 
           <div class="row g-3">
@@ -546,6 +605,25 @@
 
 {% block scripts %}
 <script>
+  // Script para alternar campos de Aparelho Particular na abertura de OS
+  function toggleDispositivoParticular() {
+    const sel = document.getElementById('nova_os_dispositivo_id');
+    const box = document.getElementById('box_aparelho_particular');
+    const colabSel = document.getElementById('colaborador_id_particular');
+    const aparInput = document.getElementById('aparelho_particular');
+
+    if (!sel || !box) return;
+    if (sel.value === 'particular') {
+      box.style.display = 'block';
+      colabSel.setAttribute('required', 'required');
+      aparInput.setAttribute('required', 'required');
+    } else {
+      box.style.display = 'none';
+      colabSel.removeAttribute('required');
+      aparInput.removeAttribute('required');
+    }
+  }
+
   // Script para modal de status
   document.querySelectorAll('.btn-status').forEach(btn => {
     btn.addEventListener('click', function() {
@@ -557,13 +635,30 @@
   });
 
   // Script para modal de conclusão
+  let ordemAtualParticular = false;
+
   document.querySelectorAll('.btn-concluir').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
+      const isPart = this.getAttribute('data-is-particular') === '1';
+      ordemAtualParticular = isPart;
+
       document.getElementById('formConcluirOS').action = `/ordens/${id}/concluir`;
       document.getElementById('concluir_disp').textContent = this.getAttribute('data-disp');
       document.getElementById('concluir_colab').textContent = this.getAttribute('data-colab') || 'Nenhum vinculado';
       document.getElementById('concluir_valor_final').value = this.getAttribute('data-orcado') || '';
+
+      const badgePart = document.getElementById('concluir_badge_particular');
+      const alertaPart = document.getElementById('concluir_alerta_particular');
+      if (isPart) {
+        if (badgePart) badgePart.style.display = 'inline-block';
+        if (alertaPart) alertaPart.style.display = 'block';
+        document.getElementById('concluir_responsavel').value = 'colaborador';
+      } else {
+        if (badgePart) badgePart.style.display = 'none';
+        if (alertaPart) alertaPart.style.display = 'none';
+      }
+
       ajustarResponsabilidade();
     });
   });
@@ -572,6 +667,9 @@
   document.querySelectorAll('.btn-editar-os').forEach(btn => {
     btn.addEventListener('click', function() {
       const id = this.getAttribute('data-id');
+      const isPart = this.getAttribute('data-is-particular') === '1';
+      const aparPart = this.getAttribute('data-aparelho-particular') || '';
+
       document.getElementById('formEditarOS').action = `/ordens/${id}/editar`;
       document.getElementById('edit_disp_nome').textContent = this.getAttribute('data-disp');
       document.getElementById('edit_fornecedor_id').value = this.getAttribute('data-forn');
@@ -583,10 +681,23 @@
       document.getElementById('edit_valor_final').value = this.getAttribute('data-valor-final') || '';
       document.getElementById('edit_data_retorno').value = this.getAttribute('data-data-retorno') || '';
       document.getElementById('edit_causa').value = this.getAttribute('data-causa') || '';
-      document.getElementById('edit_responsavel_custo').value = this.getAttribute('data-resp') || 'empresa';
+      document.getElementById('edit_responsavel_custo').value = this.getAttribute('data-resp') || (isPart ? 'colaborador' : 'empresa');
       document.getElementById('edit_valor_colaborador').value = this.getAttribute('data-val-colab') || '';
       document.getElementById('edit_laudo').value = this.getAttribute('data-laudo') || '';
       document.getElementById('edit_observacoes').value = this.getAttribute('data-obs') || '';
+
+      const divPart = document.getElementById('div_edit_aparelho_particular');
+      const inputPart = document.getElementById('edit_aparelho_particular');
+      if (divPart && inputPart) {
+        if (isPart) {
+          divPart.style.display = 'block';
+          inputPart.value = aparPart;
+        } else {
+          divPart.style.display = 'none';
+          inputPart.value = '';
+        }
+      }
+
       toggleEditValorMisto();
     });
   });
@@ -615,7 +726,9 @@
   function ajustarResponsabilidade() {
     const causa = document.getElementById('concluir_causa').value;
     const respSelect = document.getElementById('concluir_responsavel');
-    if (causa === 'mau_uso') {
+    if (ordemAtualParticular) {
+      respSelect.value = 'colaborador';
+    } else if (causa === 'mau_uso') {
       respSelect.value = 'colaborador';
     } else {
       respSelect.value = 'empresa';

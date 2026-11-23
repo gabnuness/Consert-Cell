@@ -203,3 +203,85 @@ def test_tentativa_abrir_segunda_os_para_aparelho_ja_na_assistencia(client, app,
         total_os = OrdemAssistencia.query.filter_by(dispositivo_id=celular_padrao.id).count()
         # Se total_os for 2, significa que o sistema permitiu OS duplicada simultânea!
         assert total_os == 1, "VULNERABILIDADE / BUG: Sistema permitiu abrir duas OS concorrentes para o mesmo aparelho!"
+
+
+def test_abrir_e_concluir_os_aparelho_particular_com_vale_folha(client, app, colab_padrao, assistencia_padrao, celular_padrao):
+    """
+    Fluxo de Aparelho Particular:
+    1. Funcionário leva celular pessoal quebrado.
+    2. TI abre OS selecionando 'particular', vinculando ao colaborador.
+    3. Nenhum dispositivo da empresa é afetado.
+    4. Ao concluir, gera Vale integral para desconto em folha do colaborador.
+    """
+    status_inicial_empresa = celular_padrao.status
+
+    # 1. Abre OS com Aparelho Particular
+    res = client.post('/ordens', data={
+        'dispositivo_id': 'particular',
+        'colaborador_id_particular': str(colab_padrao.id),
+        'aparelho_particular': 'iPhone 13 128GB Preto Pessoal',
+        'fornecedor_id': str(assistencia_padrao.id),
+        'data_envio': date.today().strftime('%Y-%m-%d'),
+        'defeito': 'Display quebrado por queda em casa',
+        'valor_orcado': '480.00'
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    with app.app_context():
+        os_part = OrdemAssistencia.query.filter_by(is_particular=True).first()
+        assert os_part is not None
+        assert os_part.dispositivo_id is None
+        assert os_part.is_particular is True
+        assert os_part.aparelho_particular == 'iPhone 13 128GB Preto Pessoal'
+        assert os_part.colaborador_id == colab_padrao.id
+        assert os_part.status == 'enviado'
+        assert os_part.nome_dispositivo == 'iPhone 13 128GB Preto Pessoal'
+
+        # O celular corporativo não teve seu status alterado
+        disp_empresa = Dispositivo.query.get(celular_padrao.id)
+        assert disp_empresa.status == status_inicial_empresa
+        os_id = os_part.id
+
+    # 2. Conclui OS com 100% de desconto em folha (colaborador)
+    res_concluir = client.post(f'/ordens/{os_id}/concluir', data={
+        'status_final': 'devolvido',
+        'data_retorno': date.today().strftime('%Y-%m-%d'),
+        'valor_final': '480.00',
+        'causa': 'acidente_queda',
+        'laudo': 'Substituição de tela do smartphone particular do funcionário',
+        'responsavel_custo': 'colaborador',
+        'valor_colaborador': '480.00',
+        'garantia_dias': '90'
+    }, follow_redirects=True)
+    assert res_concluir.status_code == 200
+
+    with app.app_context():
+        os_fechada = OrdemAssistencia.query.get(os_id)
+        assert os_fechada.status == 'devolvido'
+        assert os_fechada.valor_final == 480.0
+        assert os_fechada.valor_colaborador == 480.0
+        assert os_fechada.valor_empresa == 0.0
+
+        # Verifica se o Vale para o RH foi criado com os dados corretos
+        vale = Vale.query.filter_by(ordem_id=os_id).first()
+        assert vale is not None
+        assert vale.colaborador_id == colab_padrao.id
+        assert vale.valor == 480.0
+        assert vale.status == 'pendente'
+        assert 'Aparelho Particular' in vale.motivo
+
+
+def test_validacao_colaborador_obrigatorio_para_aparelho_particular(client, app, assistencia_padrao):
+    """Para aparelho particular, o colaborador é obrigatório para possibilitar o desconto em folha."""
+    res = client.post('/ordens', data={
+        'dispositivo_id': 'particular',
+        'colaborador_id_particular': '',  # Vazio propositalmente
+        'aparelho_particular': 'Galaxy S21 Pessoal',
+        'fornecedor_id': str(assistencia_padrao.id),
+        'defeito': 'Bateria estufada'
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    with app.app_context():
+        os_tentativa = OrdemAssistencia.query.filter_by(is_particular=True).first()
+        assert os_tentativa is None, "Não deveria abrir OS particular sem colaborador definido!"

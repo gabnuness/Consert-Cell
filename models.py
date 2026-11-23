@@ -137,7 +137,7 @@ class OrdemAssistencia(db.Model):
     __tablename__ = 'ordens_assistencia'
 
     id = db.Column(db.Integer, primary_key=True)
-    dispositivo_id = db.Column(db.Integer, db.ForeignKey('dispositivos.id'), nullable=False)
+    dispositivo_id = db.Column(db.Integer, db.ForeignKey('dispositivos.id'), nullable=True)
     fornecedor_id = db.Column(db.Integer, db.ForeignKey('fornecedores.id'), nullable=False)
     colaborador_id = db.Column(db.Integer, db.ForeignKey('colaboradores.id'), nullable=True)
     data_envio = db.Column(db.Date, default=date.today, nullable=False)
@@ -146,6 +146,10 @@ class OrdemAssistencia(db.Model):
     # Status: 'enviado', 'em_analise', 'orcamento_aprovado', 'em_reparo', 'pronto', 'devolvido', 'sem_conserto'
     valor_orcado = db.Column(db.Float, default=0.0)
     valor_final = db.Column(db.Float, default=0.0)
+
+    # Identificação de Aparelho Particular (pessoal de colaborador com desconto em folha)
+    is_particular = db.Column(db.Boolean, default=False)
+    aparelho_particular = db.Column(db.String(150), nullable=True)
 
     # Diagnóstico e Responsabilidade
     causa = db.Column(db.String(30), nullable=True)
@@ -189,8 +193,23 @@ class OrdemAssistencia(db.Model):
             return 'alerta'
         return 'ok'
 
+    @property
+    def nome_dispositivo(self):
+        """Nome do aparelho da empresa ou identificação do aparelho particular."""
+        if self.is_particular or not self.dispositivo:
+            return self.aparelho_particular or "Aparelho Particular"
+        return f"{self.dispositivo.marca} {self.dispositivo.modelo}"
+
+    @property
+    def identificador_dispositivo(self):
+        """Identificador (IMEI/Serial/Patrimônio) ou aviso de Particular."""
+        if self.is_particular or not self.dispositivo:
+            return "Particular (Desconto em Folha)"
+        return self.dispositivo.identificador
+
     def __repr__(self):
-        return f"<OS #{self.id} - Disp {self.dispositivo_id} - {self.status}>"
+        disp_info = f"Disp {self.dispositivo_id}" if self.dispositivo_id else f"Particular ({self.aparelho_particular})"
+        return f"<OS #{self.id} - {disp_info} - {self.status}>"
 
 
 class Vale(db.Model):

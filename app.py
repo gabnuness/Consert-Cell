@@ -562,7 +562,7 @@ def excluir_dispositivo(id):
 @login_required
 def ordens():
     if request.method == 'POST':
-        dispositivo_id = request.form.get('dispositivo_id')
+        dispositivo_id_raw = request.form.get('dispositivo_id')
         fornecedor_id = request.form.get('fornecedor_id')
         data_envio_str = request.form.get('data_envio')
         data_envio = datetime.strptime(data_envio_str, '%Y-%m-%d').date() if data_envio_str else date.today()
@@ -570,7 +570,34 @@ def ordens():
         valor_orcado = parse_float_br(request.form.get('valor_orcado'))
         observacoes = request.form.get('observacoes', '').strip()
 
-        disp = Dispositivo.query.get_or_404(dispositivo_id)
+        is_particular = (str(dispositivo_id_raw).strip().lower() == 'particular')
+
+        if is_particular:
+            colaborador_id = request.form.get('colaborador_id_particular')
+            if not colaborador_id:
+                flash("Para ordem de aparelho particular, selecione o colaborador responsável pelo desconto em folha!", "danger")
+                return redirect(url_for('ordens'))
+
+            aparelho_particular = request.form.get('aparelho_particular', '').strip() or "Celular Particular"
+
+            nova_os = OrdemAssistencia(
+                dispositivo_id=None,
+                fornecedor_id=fornecedor_id,
+                colaborador_id=int(colaborador_id),
+                data_envio=data_envio,
+                defeito=defeito,
+                valor_orcado=valor_orcado,
+                status='enviado',
+                observacoes=observacoes,
+                is_particular=True,
+                aparelho_particular=aparelho_particular
+            )
+            db.session.add(nova_os)
+            db.session.commit()
+            flash(f"Ordem de Serviço #{nova_os.id} (Aparelho Particular - {aparelho_particular}) aberta com sucesso!", "success")
+            return redirect(url_for('ordens'))
+
+        disp = Dispositivo.query.get_or_404(dispositivo_id_raw)
         colaborador_id = disp.colaborador_id
 
         if disp.status == 'na_assistencia':
@@ -593,7 +620,9 @@ def ordens():
             defeito=defeito,
             valor_orcado=valor_orcado,
             status='enviado',
-            observacoes=observacoes
+            observacoes=observacoes,
+            is_particular=False,
+            aparelho_particular=None
         )
 
         # Atualiza status do aparelho
@@ -691,29 +720,37 @@ def concluir_ordem(id):
     os_obj.valor_colaborador = valor_colaborador
     os_obj.garantia_ate = garantia_ate
 
-    # Atualiza o dispositivo
+    # Atualiza o dispositivo (se pertencer ao patrimônio da empresa)
     disp = os_obj.dispositivo
-    if status_final == 'sem_conserto':
-        disp.status = 'baixado'
-    else:
-        disp.status = 'em_uso' if disp.colaborador_id else 'em_estoque'
+    if disp:
+        if status_final == 'sem_conserto':
+            disp.status = 'baixado'
+        else:
+            disp.status = 'em_uso' if disp.colaborador_id else 'em_estoque'
 
     # Se houve valor para o colaborador, gera Vale automaticamente!
     if valor_colaborador > 0 and os_obj.colaborador_id:
         # Verifica se já não existe vale vinculado a esta OS
         vale_existente = Vale.query.filter_by(ordem_id=os_obj.id).first()
         if not vale_existente:
+            if os_obj.is_particular:
+                motivo_vale = f"Reparo Aparelho Particular OS #{os_obj.id} ({os_obj.aparelho_particular or 'Celular Particular'})"
+                obs_vale = f"Aparelho particular consertado via assistência. Desconto em folha autorizado da OS #{os_obj.id}. Laudo: {laudo}"
+            else:
+                motivo_vale = f"Reparo OS #{os_obj.id} ({causa.replace('_', ' ').title()})"
+                obs_vale = f"Gerado automaticamente pelo fechamento da OS #{os_obj.id}. Laudo: {laudo}"
+
             novo_vale = Vale(
                 ordem_id=os_obj.id,
                 colaborador_id=os_obj.colaborador_id,
                 valor=valor_colaborador,
                 data_emissao=data_retorno,
                 status='pendente',
-                motivo=f"Reparo OS #{os_obj.id} ({causa.replace('_', ' ').title()})",
-                observacoes=f"Gerado automaticamente pelo fechamento da OS #{os_obj.id}. Laudo: {laudo}"
+                motivo=motivo_vale,
+                observacoes=obs_vale
             )
             db.session.add(novo_vale)
-            flash(f"OS #{os_obj.id} finalizada! Vale de R$ {valor_colaborador:,.2f} gerado para o colaborador.", "warning")
+            flash(f"OS #{os_obj.id} finalizada! Vale de R$ {valor_colaborador:,.2f} gerado para desconto em folha do colaborador.", "warning")
     else:
         flash(f"OS #{os_obj.id} finalizada com sucesso! Custo da empresa: R$ {valor_empresa:,.2f}.", "success")
 
@@ -772,6 +809,11 @@ def editar_ordem(id):
 
     os_obj.observacoes = request.form.get('observacoes', '').strip() or None
 
+    if os_obj.is_particular:
+        aparelho_part = request.form.get('aparelho_particular')
+        if aparelho_part:
+            os_obj.aparelho_particular = aparelho_part.strip()
+
     # Atualiza o dispositivo de acordo com o status da OS
     disp = os_obj.dispositivo
     if disp:
@@ -784,10 +826,11 @@ def editar_ordem(id):
 
     # Sincroniza o Vale vinculado se necessário
     if os_obj.valor_colaborador > 0 and os_obj.colaborador_id:
+        motivo_vale = f"Reparo Aparelho Particular OS #{os_obj.id} ({os_obj.aparelho_particular or 'Celular Particular'})" if os_obj.is_particular else f"Reparo OS #{os_obj.id} ({str(os_obj.causa or 'manutencao').replace('_', ' ').title()})"
         if os_obj.vale:
             os_obj.vale.valor = os_obj.valor_colaborador
             os_obj.vale.colaborador_id = os_obj.colaborador_id
-            os_obj.vale.motivo = f"Reparo OS #{os_obj.id} ({str(os_obj.causa or 'manutencao').replace('_', ' ').title()})"
+            os_obj.vale.motivo = motivo_vale
         else:
             novo_vale = Vale(
                 ordem_id=os_obj.id,
@@ -795,7 +838,7 @@ def editar_ordem(id):
                 valor=os_obj.valor_colaborador,
                 data_emissao=os_obj.data_retorno or date.today(),
                 status='pendente',
-                motivo=f"Reparo OS #{os_obj.id} ({str(os_obj.causa or 'manutencao').replace('_', ' ').title()})"
+                motivo=motivo_vale
             )
             db.session.add(novo_vale)
     elif os_obj.vale:
@@ -1199,7 +1242,13 @@ def exportar_excel():
 
     ordens = OrdemAssistencia.query.all()
     for o in ordens:
-        disp_txt = f"{o.dispositivo.marca} {o.dispositivo.modelo} ({o.dispositivo.identificador})" if o.dispositivo else "-"
+        if o.is_particular:
+            colab_info = f" ({o.colaborador.nome})" if o.colaborador else ""
+            disp_txt = f"[Particular] {o.aparelho_particular or 'Aparelho Particular'}{colab_info}"
+        elif o.dispositivo:
+            disp_txt = f"{o.dispositivo.marca} {o.dispositivo.modelo} ({o.dispositivo.identificador})"
+        else:
+            disp_txt = "-"
         ws_os.append([
             o.id,
             disp_txt,
@@ -1368,13 +1417,78 @@ def carregar_dados_exemplo():
     return redirect(url_for('index'))
 
 
+def verificar_migracoes():
+    """Garante que as colunas e restrições para suporte a Aparelho Particular existam no banco de dados SQLite."""
+    try:
+        with db.engine.connect() as conn:
+            # 1. Verifica se a tabela ordens_assistencia existe
+            res = conn.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='ordens_assistencia'")).fetchone()
+            if not res:
+                return
+
+            cols = conn.execute(db.text("PRAGMA table_info(ordens_assistencia)")).fetchall()
+            col_names = [c[1] for c in cols]
+            disp_col = next((c for c in cols if c[1] == 'dispositivo_id'), None)
+
+            # Se dispositivo_id tiver restrição NOT NULL (c[3] == 1), recria a tabela para permitir NULL em aparelho particular
+            if disp_col and disp_col[3] == 1:
+                conn.execute(db.text("PRAGMA foreign_keys=OFF;"))
+                conn.execute(db.text("""
+                    CREATE TABLE IF NOT EXISTS ordens_assistencia_migration (
+                        id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+                        dispositivo_id INTEGER,
+                        fornecedor_id INTEGER NOT NULL,
+                        colaborador_id INTEGER,
+                        data_envio DATE NOT NULL,
+                        defeito TEXT NOT NULL,
+                        status VARCHAR(30),
+                        valor_orcado FLOAT,
+                        valor_final FLOAT,
+                        causa VARCHAR(30),
+                        laudo TEXT,
+                        responsavel_custo VARCHAR(20),
+                        valor_empresa FLOAT,
+                        valor_colaborador FLOAT,
+                        data_retorno DATE,
+                        garantia_ate DATE,
+                        observacoes TEXT,
+                        is_particular BOOLEAN DEFAULT 0,
+                        aparelho_particular VARCHAR(150),
+                        FOREIGN KEY(dispositivo_id) REFERENCES dispositivos(id),
+                        FOREIGN KEY(fornecedor_id) REFERENCES fornecedores(id),
+                        FOREIGN KEY(colaborador_id) REFERENCES colaboradores(id)
+                    );
+                """))
+                tem_part = 'is_particular' in col_names
+                col_sel = "id, dispositivo_id, fornecedor_id, colaborador_id, data_envio, defeito, status, valor_orcado, valor_final, causa, laudo, responsavel_custo, valor_empresa, valor_colaborador, data_retorno, garantia_ate, observacoes"
+                if tem_part:
+                    col_sel += ", is_particular, aparelho_particular"
+                    conn.execute(db.text(f"INSERT INTO ordens_assistencia_migration SELECT {col_sel} FROM ordens_assistencia;"))
+                else:
+                    conn.execute(db.text(f"INSERT INTO ordens_assistencia_migration ({col_sel}) SELECT {col_sel} FROM ordens_assistencia;"))
+
+                conn.execute(db.text("DROP TABLE ordens_assistencia;"))
+                conn.execute(db.text("ALTER TABLE ordens_assistencia_migration RENAME TO ordens_assistencia;"))
+                conn.execute(db.text("PRAGMA foreign_keys=ON;"))
+                conn.commit()
+            else:
+                if 'is_particular' not in col_names:
+                    conn.execute(db.text("ALTER TABLE ordens_assistencia ADD COLUMN is_particular BOOLEAN DEFAULT 0;"))
+                    conn.commit()
+                if 'aparelho_particular' not in col_names:
+                    conn.execute(db.text("ALTER TABLE ordens_assistencia ADD COLUMN aparelho_particular VARCHAR(150);"))
+                    conn.commit()
+    except Exception as e:
+        print(f"[MIGRACAO] Aviso: {e}")
+
+
 def garantir_usuario_admin():
     """Garante que haja um usuário ADMIN único criado no sistema ao iniciar."""
     admin = AdminUser.query.first()
     if not admin:
-        email_padrao = os.environ.get('ADMIN_EMAIL', 'admin@disfonte.com.br').strip().lower()
+        email_padrao = os.environ.get('ADMIN_EMAIL', 'admin@pentest.local').strip().lower()
         senha_padrao = os.environ.get('ADMIN_SENHA', 'admin123')
-        nome_padrao = os.environ.get('ADMIN_NOME', 'Gabriel Nunes (Admin TI)')
+        nome_padrao = os.environ.get('ADMIN_NOME', 'Administrador Pentest (TI)')
         admin = AdminUser(
             email=email_padrao,
             nome=nome_padrao,
@@ -1393,17 +1507,25 @@ def garantir_usuario_admin():
 # Cria as tabelas e garante a existência do usuário admin na inicialização
 with app.app_context():
     db.create_all()
+    verificar_migracoes()
     garantir_usuario_admin()
+    if not Colaborador.query.first():
+        try:
+            from popular_dados_genericos import gerar_base_generica
+            gerar_base_generica()
+        except Exception as e:
+            print(f"[AUTO-SEED] Aviso ao popular dados genéricos: {e}")
 
 if __name__ == '__main__':
-    import webbrowser
-    import threading
+    port = int(os.environ.get('PORT', 5000))
+    host = os.environ.get('HOST', '0.0.0.0')
+    debug = os.environ.get('FLASK_DEBUG', 'False').lower() in ('true', '1')
 
-    def abrir_navegador():
-        webbrowser.open_new('http://127.0.0.1:5000')
-
-    # Abre o navegador automaticamente apenas na primeira carga
-    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+    if os.name == 'nt' and os.environ.get('WERKZEUG_RUN_MAIN') != 'true' and os.environ.get('AUTO_OPEN_BROWSER', 'true').lower() == 'true':
+        import webbrowser
+        import threading
+        def abrir_navegador():
+            webbrowser.open_new(f'http://127.0.0.1:{port}')
         threading.Timer(1.2, abrir_navegador).start()
 
-    app.run(debug=True, port=5000)
+    app.run(host=host, port=port, debug=debug)
