@@ -1,4 +1,55 @@
-# Python
+# ==============================================================================
+# CONSERT CELL - .gitignore
+# Regras completas para proteger dados sensíveis, credenciais e arquivos locais
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# 1. BANCOS DE DADOS, BACKUPS & BASES OPERACIONAIS REAIS
+# ------------------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+*.bak
+instance/
+backups_banco/
+banco_real_salvo/
+colaboradores_comercial.db
+backup_*.db
+consertcell*.db
+
+# ------------------------------------------------------------------------------
+# 2. SCRIPTS DE MANUTENÇÃO INTERNA & ARQUIVOS LOCAIS DO AMBIENTE
+# ------------------------------------------------------------------------------
+scripts_locais/
+restaurar_banco_real.py
+migrar_colaboradores_comercial.py
+carregar_banco_linkedin.py
+subir_github.bat
+iniciar.bat
+
+# ------------------------------------------------------------------------------
+# 3. PLANILHAS, RELATÓRIOS DO RH & DOCUMENTAÇÃO INTERNA COM DADOS
+# ------------------------------------------------------------------------------
+*.csv
+*.xlsx
+*.xls
+*.pdf
+assistencia.md
+RELATORIO_QA.md
+image.png
+
+# ------------------------------------------------------------------------------
+# 4. VARIÁVEIS DE AMBIENTE, SENHAS & SEGREDOS
+# ------------------------------------------------------------------------------
+.env
+.env.*
+.env.local
+.env.production
+!.env.example
+
+# ------------------------------------------------------------------------------
+# 5. PYTHON, CACHES & COMPILADOS
+# ------------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
@@ -13,12 +64,15 @@ lib/
 lib64/
 parts/
 sdist/
+var/
 wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# ------------------------------------------------------------------------------
+# 6. AMBIENTES VIRTUAIS (VIRTUALENVS)
+# ------------------------------------------------------------------------------
 venv/
 .venv/
 env/
@@ -26,35 +80,38 @@ ENV/
 env.bak/
 venv.bak/
 
-# SQLite / Database & Arquivos Locais Seguros
-*.sqlite3
-*.db
-*.sqlite
-instance/
-backups_banco/
-banco_real_salvo/
-scripts_locais/
-colaboradores_comercial.db
+# ------------------------------------------------------------------------------
+# 7. LOGS & DIRETÓRIOS TEMPORÁRIOS
+# ------------------------------------------------------------------------------
+*.log
+scratch/
+temp/
+tmp/
+*.tmp
 
-# Environment Variables & Secrets
-.env
-.env.*
-!.env.example
-
-# IDE & Editors
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Operating System
-.DS_Store
-Thumbs.db
-desktop.ini
-
-# Testing & Coverage
+# ------------------------------------------------------------------------------
+# 8. TESTES, COBERTURA & SCREENSHOTS DE QA
+# ------------------------------------------------------------------------------
 .pytest_cache/
 .ruff_cache/
 .coverage
 htmlcov/
+tests/screenshots/
+
+# ------------------------------------------------------------------------------
+# 9. IDES & EDITORES DE CÓDIGO
+# ------------------------------------------------------------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------------------------
+# 10. ARQUIVOS DO SISTEMA OPERACIONAL
+# ------------------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
