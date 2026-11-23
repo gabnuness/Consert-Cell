@@ -14,6 +14,7 @@ from models import (
 )
 
 app = Flask(__name__)
+os.makedirs(app.instance_path, exist_ok=True)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'disfonte-ti-chave-segura-2026-xK9mP2qR')
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///consertcell.db'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
