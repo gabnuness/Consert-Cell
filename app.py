@@ -12,6 +12,7 @@ from models import (
     db, AdminUser, Colaborador, Fornecedor, Dispositivo, OrdemAssistencia,
     Vale, Acessorio, EntradaAcessorio, SaidaAcessorio
 )
+from security import login_limiter, DUMMY_BCRYPT_HASH
 
 app = Flask(__name__)
 os.makedirs(app.instance_path, exist_ok=True)
@@ -81,6 +82,18 @@ def parse_float_br(valor):
 
 
 # ==========================================
+# CABEÇALHOS DE SEGURANÇA HTTP (DEFESA EM PROFUNDIDADE)
+# ==========================================
+@app.after_request
+def adicionar_cabecalhos_seguranca(response):
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'SAMEORIGIN'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    return response
+
+
+# ==========================================
 # ROTA 1: DASHBOARD
 # ==========================================
 # ==========================================
@@ -91,13 +104,39 @@ def login():
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
+    client_ip = login_limiter.get_client_ip(request)
+
     if request.method == 'POST':
         email = request.form.get('email', '').strip().lower()
         senha = request.form.get('senha', '')
         lembrar = request.form.get('lembrar') == 'on'
 
+        # 1. Defesa contra Força Bruta: Verifica se o IP ou e-mail estão temporariamente bloqueados
+        is_locked, remaining_seconds = login_limiter.is_locked(client_ip, email)
+        if is_locked:
+            flash(
+                f"Bloqueio de segurança ativo: Muitas tentativas incorretas consecutivas. "
+                f"Aguarde {remaining_seconds} segundo(s) antes de tentar novamente.",
+                "danger"
+            )
+            return render_template('login.html', bloqueado=True, tempo_restante=remaining_seconds), 429
+
+        if not email or not senha:
+            flash("E-mail e senha são obrigatórios.", "danger")
+            return render_template('login.html'), 400
+
         admin = AdminUser.query.filter_by(email=email, ativo=True).first()
-        if admin and bcrypt.check_password_hash(admin.senha_hash, senha):
+
+        # 2. Defesa contra Timing Attack: tempo constante para e-mail existente ou inexistente
+        senha_valida = False
+        if admin:
+            senha_valida = bcrypt.check_password_hash(admin.senha_hash, senha)
+        else:
+            bcrypt.check_password_hash(DUMMY_BCRYPT_HASH, senha)
+
+        if admin and senha_valida:
+            # Login bem-sucedido: limpa contadores de falhas
+            login_limiter.record_success(client_ip, email)
             admin.ultimo_login = datetime.utcnow()
             db.session.commit()
             login_user(admin, remember=lembrar)
@@ -105,9 +144,25 @@ def login():
             flash(f'Bem-vindo, {admin.nome}! Login realizado com sucesso.', 'success')
             return redirect(proximo or url_for('index'))
         else:
-            flash('E-mail ou senha incorretos. Tente novamente.', 'danger')
+            # Falha de autenticação: computa tentativa e aplica bloqueio se atingir limite
+            is_now_locked, attempts_left, lock_time = login_limiter.record_failure(client_ip, email)
+            if is_now_locked:
+                flash(
+                    f"Acesso bloqueado por segurança: Número máximo de tentativas excedido. "
+                    f"Por favor, aguarde {lock_time} segundos para tentar novamente.",
+                    "danger"
+                )
+                return render_template('login.html', bloqueado=True, tempo_restante=lock_time), 429
+            else:
+                flash(
+                    f"E-mail ou senha incorretos. Tentativas restantes antes do bloqueio: {attempts_left}.",
+                    "danger"
+                )
+                return render_template('login.html', tentativas_restantes=attempts_left), 401
 
-    return render_template('login.html')
+    # Método GET: verifica se está bloqueado preventivamente
+    is_locked, remaining_seconds = login_limiter.is_locked(client_ip)
+    return render_template('login.html', bloqueado=is_locked, tempo_restante=remaining_seconds)
 
 
 @app.route('/logout')
@@ -200,16 +255,39 @@ def obter_admin_autenticado_api():
 
 @app.route('/api/auth/login', methods=['POST'])
 def api_auth_login():
-    """Endpoint REST JSON para autenticação e obtenção do Bearer Token de API."""
+    """Endpoint REST JSON para autenticação com proteção de Rate Limiting e defesa contra Brute-Force."""
+    client_ip = login_limiter.get_client_ip(request)
     data = request.get_json(silent=True) or request.form
     email = (data.get('email') or '').strip().lower()
     senha = data.get('senha') or ''
+
+    # 1. Verifica bloqueio ativo por Rate Limit
+    is_locked, remaining_seconds = login_limiter.is_locked(client_ip, email)
+    if is_locked:
+        resp = jsonify({
+            'success': False,
+            'error': 'rate_limit_exceeded',
+            'message': f'Bloqueio temporário por tentativas excessivas. Tente novamente em {remaining_seconds} segundos.',
+            'retry_after': remaining_seconds
+        })
+        resp.status_code = 429
+        resp.headers['Retry-After'] = str(remaining_seconds)
+        return resp
 
     if not email or not senha:
         return jsonify({'success': False, 'message': 'E-mail e senha são obrigatórios.'}), 400
 
     admin = AdminUser.query.filter_by(email=email, ativo=True).first()
-    if admin and bcrypt.check_password_hash(admin.senha_hash, senha):
+
+    # 2. Defesa contra timing attacks (tempo constante de hash)
+    senha_valida = False
+    if admin:
+        senha_valida = bcrypt.check_password_hash(admin.senha_hash, senha)
+    else:
+        bcrypt.check_password_hash(DUMMY_BCRYPT_HASH, senha)
+
+    if admin and senha_valida:
+        login_limiter.record_success(client_ip, email)
         if not admin.token_api:
             admin.token_api = secrets.token_hex(24)
         admin.ultimo_login = datetime.utcnow()
@@ -222,7 +300,25 @@ def api_auth_login():
             'user': admin.to_dict()
         }), 200
 
-    return jsonify({'success': False, 'message': 'Credenciais inválidas.'}), 401
+    # Falha: registra tentativa e aplica bloqueio se atingir limite
+    is_now_locked, attempts_left, lock_time = login_limiter.record_failure(client_ip, email)
+    if is_now_locked:
+        resp = jsonify({
+            'success': False,
+            'error': 'rate_limit_exceeded',
+            'message': f'Limite de tentativas excedido. Acesso bloqueado por {lock_time} segundos.',
+            'retry_after': lock_time
+        })
+        resp.status_code = 429
+        resp.headers['Retry-After'] = str(lock_time)
+        return resp
+
+    return jsonify({
+        'success': False,
+        'message': f'Credenciais inválidas. Restam {attempts_left} tentativa(s) antes do bloqueio temporário.',
+        'attempts_remaining': attempts_left,
+        'attempts_left': attempts_left
+    }), 401
 
 
 @app.route('/api/auth/me', methods=['GET'])
@@ -916,23 +1012,113 @@ def vales():
     total_emitido = sum(v.valor for v in lista_vales if v.status == 'emitido')
     total_descontado = sum(v.valor for v in lista_vales if v.status == 'descontado')
 
+    colaboradores = Colaborador.query.filter_by(ativo=True).order_by(Colaborador.nome).all()
+    dispositivos = Dispositivo.query.filter(Dispositivo.status != 'baixado').order_by(Dispositivo.marca, Dispositivo.modelo).all()
+
     return render_template(
         'vales.html',
         vales=lista_vales,
         filtro_status=filtro_status,
         total_pendente=total_pendente,
         total_emitido=total_emitido,
-        total_descontado=total_descontado
+        total_descontado=total_descontado,
+        colaboradores=colaboradores,
+        dispositivos=dispositivos
     )
 
 
+@app.route('/vales/novo', methods=['POST'])
+@login_required
+def criar_vale_manual():
+    """Criação manual de vale avulso (ex: perda/extravio de aparelho sem passar por OS)."""
+    colaborador_id = request.form.get('colaborador_id')
+    dispositivo_id = request.form.get('dispositivo_id')
+    valor_raw = request.form.get('valor')
+    motivo = request.form.get('motivo', '').strip()
+    observacoes = request.form.get('observacoes', '').strip()
+    data_emissao_str = request.form.get('data_emissao')
+    dar_baixa = request.form.get('dar_baixa') in ['1', 'sim', 'true', 'on']
+
+    if not colaborador_id:
+        flash("Selecione um colaborador para emitir o vale!", "danger")
+        return redirect(url_for('vales'))
+
+    valor = parse_float_br(valor_raw)
+    if valor <= 0:
+        flash("O valor a descontar deve ser maior que zero!", "danger")
+        return redirect(url_for('vales'))
+
+    if not motivo:
+        flash("Informe o motivo do lançamento do vale!", "danger")
+        return redirect(url_for('vales'))
+
+    colab = Colaborador.query.get_or_404(colaborador_id)
+
+    data_emissao = date.today()
+    if data_emissao_str:
+        try:
+            data_emissao = datetime.strptime(data_emissao_str, '%Y-%m-%d').date()
+        except ValueError:
+            data_emissao = date.today()
+
+    disp_obj = None
+    if dispositivo_id and dispositivo_id.strip() and dispositivo_id != 'nenhum':
+        disp_obj = Dispositivo.query.get(int(dispositivo_id))
+        if disp_obj and dar_baixa:
+            disp_obj.status = 'baixado'
+            nota_baixa = f"Aparelho {disp_obj.marca} {disp_obj.modelo} ({disp_obj.identificador}) baixado no inventário por perda/extravio."
+            if observacoes:
+                observacoes += f" | {nota_baixa}"
+            else:
+                observacoes = nota_baixa
+
+    novo_vale = Vale(
+        colaborador_id=colab.id,
+        dispositivo_id=disp_obj.id if disp_obj else None,
+        valor=valor,
+        data_emissao=data_emissao,
+        status='pendente',
+        motivo=motivo,
+        observacoes=observacoes or None,
+        ordem_id=None,
+        saida_acessorio_id=None
+    )
+    db.session.add(novo_vale)
+    db.session.commit()
+
+    flash(f"Vale manual #{novo_vale.id} de {formato_moeda(valor)} criado com sucesso para {colab.nome}!", "success")
+    return redirect(url_for('vales'))
+
+
+@app.route('/vales/<int:id>/imprimir')
+@login_required
+def imprimir_vale(id):
+    """Exibe o termo formal de desconto em folha de pagamento pronto para impressão e assinatura."""
+    vale = Vale.query.get_or_404(id)
+    return render_template('termo_vale.html', vale=vale)
+
+
 @app.route('/vales/<int:id>/status', methods=['POST'])
+@login_required
 def alterar_status_vale(id):
     vale_obj = Vale.query.get_or_404(id)
     novo_status = request.form.get('status')
     vale_obj.status = novo_status
     db.session.commit()
     flash(f"Vale #{vale_obj.id} atualizado para status '{novo_status}'!", "success")
+    return redirect(url_for('vales'))
+
+
+@app.route('/vales/<int:id>/excluir', methods=['POST'])
+@login_required
+def excluir_vale(id):
+    """Exclui um vale do sistema."""
+    vale_obj = Vale.query.get_or_404(id)
+    id_vale = vale_obj.id
+    nome_colab = vale_obj.colaborador.nome if vale_obj.colaborador else 'Colaborador'
+    db.session.delete(vale_obj)
+    db.session.commit()
+    flash(f"Vale #{id_vale} de {nome_colab} excluído com sucesso!", "success")
     return redirect(url_for('vales'))
 
 
@@ -1478,6 +1664,15 @@ def verificar_migracoes():
                     conn.commit()
                 if 'aparelho_particular' not in col_names:
                     conn.execute(db.text("ALTER TABLE ordens_assistencia ADD COLUMN aparelho_particular VARCHAR(150);"))
+                    conn.commit()
+
+            # 2. Verifica se a tabela vales possui a coluna dispositivo_id
+            res_vales = conn.execute(db.text("SELECT name FROM sqlite_master WHERE type='table' AND name='vales'")).fetchone()
+            if res_vales:
+                cols_vales = conn.execute(db.text("PRAGMA table_info(vales)")).fetchall()
+                col_names_vales = [c[1] for c in cols_vales]
+                if 'dispositivo_id' not in col_names_vales:
+                    conn.execute(db.text("ALTER TABLE vales ADD COLUMN dispositivo_id INTEGER REFERENCES dispositivos(id);"))
                     conn.commit()
     except Exception as e:
         print(f"[MIGRACAO] Aviso: {e}")

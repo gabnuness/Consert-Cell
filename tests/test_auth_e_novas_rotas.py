@@ -114,3 +114,131 @@ def test_edicao_e_desfazer_ordem_servico(client, app, celular_padrao, assistenci
     assert os_reaberta.status == "em_reparo"
     assert os_reaberta.data_retorno is None
     assert os_reaberta.is_aberta is True
+
+
+def test_rate_limit_web_login(client, app):
+    """Testa bloqueio de força bruta na interface Web após 5 tentativas falhas (HTTP 429)."""
+    with app.app_context():
+        user = AdminUser(
+            email="brute.force@disfonte.com.br",
+            nome="Admin Teste Forca Bruta",
+            senha_hash=bcrypt.generate_password_hash("Correta123!").decode("utf-8")
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    # 5 tentativas com senha errada: devem retornar 401
+    for i in range(1, 6):
+        resp = client.post("/login", data={
+            "email": "brute.force@disfonte.com.br",
+            "senha": f"senha_errada_{i}"
+        })
+        if i < 5:
+            assert resp.status_code == 401
+            assert f"Tentativas restantes antes do bloqueio: {5 - i}" in resp.get_data(as_text=True)
+        else:
+            # Na 5ª falha o limite de 5 é atingido e o bloqueio é ativado
+            assert resp.status_code == 429
+            assert "bloqueado por segurança" in resp.get_data(as_text=True).lower()
+
+    # 6ª tentativa imediata: é rejeitada preventivamente com 429
+    resp_bloqueado = client.post("/login", data={
+        "email": "brute.force@disfonte.com.br",
+        "senha": "qualquer_coisa"
+    })
+    assert resp_bloqueado.status_code == 429
+    assert "Bloqueio de segurança ativo" in resp_bloqueado.get_data(as_text=True)
+
+
+def test_rate_limit_api_login(client, app):
+    """Testa bloqueio de força bruta na API REST após 5 falhas, verificando Retry-After e JSON."""
+    with app.app_context():
+        user = AdminUser(
+            email="api.brute@disfonte.com.br",
+            nome="API Brute Target",
+            senha_hash=bcrypt.generate_password_hash("SenhaCerta999").decode("utf-8"),
+            token_api="token_valido_999"
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    # 5 falhas consecutivas via JSON
+    for i in range(1, 6):
+        resp = client.post("/api/auth/login", json={
+            "email": "api.brute@disfonte.com.br",
+            "senha": f"errada_{i}"
+        })
+        if i < 5:
+            assert resp.status_code == 401
+            data = resp.get_json()
+            assert data["attempts_left"] == 5 - i
+        else:
+            assert resp.status_code == 429
+            data = resp.get_json()
+            assert data["error"] == "rate_limit_exceeded"
+            assert "Retry-After" in resp.headers
+
+    # Tentativa bloqueada
+    resp_block = client.post("/api/auth/login", json={
+        "email": "api.brute@disfonte.com.br",
+        "senha": "SenhaCerta999"
+    })
+    assert resp_block.status_code == 429
+    assert resp_block.get_json()["error"] == "rate_limit_exceeded"
+
+
+def test_reset_rate_limit_apos_sucesso(client, app):
+    """Testa que login com sucesso limpa o histórico de falhas e reseta a contagem."""
+    with app.app_context():
+        user = AdminUser(
+            email="reset.rate@disfonte.com.br",
+            nome="Admin Reset",
+            senha_hash=bcrypt.generate_password_hash("SenhaForte!").decode("utf-8")
+        )
+        db.session.add(user)
+        db.session.commit()
+
+    # 3 falhas
+    for _ in range(3):
+        resp = client.post("/api/auth/login", json={
+            "email": "reset.rate@disfonte.com.br",
+            "senha": "senha_errada"
+        })
+        assert resp.status_code == 401
+
+    # Login bem-sucedido
+    resp_ok = client.post("/api/auth/login", json={
+        "email": "reset.rate@disfonte.com.br",
+        "senha": "SenhaForte!"
+    })
+    assert resp_ok.status_code == 200
+
+    # Próxima falha deve ter voltado para 4 tentativas restantes (5 - 1)
+    resp_nova_falha = client.post("/api/auth/login", json={
+        "email": "reset.rate@disfonte.com.br",
+        "senha": "outra_errada"
+    })
+    assert resp_nova_falha.status_code == 401
+    assert resp_nova_falha.get_json()["attempts_left"] == 4
+
+
+def test_defesa_timing_attack_email_inexistente(client, app):
+    """Testa que usuário inexistente recebe a mesma mensagem genérica e não gera vazamento de informação."""
+    resp = client.post("/api/auth/login", json={
+        "email": "email_que_nao_existe@disfonte.com.br",
+        "senha": "qualquer_coisa"
+    })
+    assert resp.status_code == 401
+    data = resp.get_json()
+    assert data["success"] is False
+    assert "Credenciais inválidas" in data["message"]
+
+
+def test_cabecalhos_seguranca_http(client):
+    """Verifica se os cabeçalhos de segurança HTTP recomendados contra pentest estão ativos."""
+    resp = client.get("/login")
+    assert resp.headers.get("X-Content-Type-Options") == "nosniff"
+    assert resp.headers.get("X-Frame-Options") == "SAMEORIGIN"
+    assert resp.headers.get("X-XSS-Protection") == "1; mode=block"
+    assert resp.headers.get("Referrer-Policy") == "strict-origin-when-cross-origin"
+

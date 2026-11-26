@@ -38,7 +38,11 @@ def app():
 @pytest.fixture
 def client(app):
     """Cliente HTTP de teste para fazer requisições GET e POST."""
-    return app.test_client()
+    from security import login_limiter
+    login_limiter.reset_all()
+    test_client = app.test_client()
+    yield test_client
+    login_limiter.reset_all()
 
 @pytest.fixture
 def runner(app):

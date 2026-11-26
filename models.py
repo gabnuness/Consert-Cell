@@ -218,6 +218,7 @@ class Vale(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     ordem_id = db.Column(db.Integer, db.ForeignKey('ordens_assistencia.id'), nullable=True)
     saida_acessorio_id = db.Column(db.Integer, db.ForeignKey('saidas_acessorio.id'), nullable=True)
+    dispositivo_id = db.Column(db.Integer, db.ForeignKey('dispositivos.id'), nullable=True)
     colaborador_id = db.Column(db.Integer, db.ForeignKey('colaboradores.id'), nullable=False)
     valor = db.Column(db.Float, nullable=False, default=0.0)
     data_emissao = db.Column(db.Date, default=date.today, nullable=False)
@@ -225,8 +226,23 @@ class Vale(db.Model):
     motivo = db.Column(db.String(100), nullable=True)
     observacoes = db.Column(db.Text, nullable=True)
 
+    # Relacionamento direto opcional com o dispositivo envolvido (ex: perda de aparelho sem OS)
+    dispositivo = db.relationship('Dispositivo', backref='vales', lazy=True)
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+
+    @property
+    def origem_formatada(self):
+        """Retorna a identificação textual da origem do débito."""
+        if self.ordem_id:
+            return f"OS #{self.ordem_id}"
+        elif self.saida_acessorio_id:
+            return f"Acessório #{self.saida_acessorio_id}"
+        elif self.dispositivo_id and self.dispositivo:
+            return f"Perda/Extravio: {self.dispositivo.marca} {self.dispositivo.modelo}"
+        else:
+            return "Vale Manual / Avulso"
 
     def __repr__(self):
         return f"<Vale #{self.id} - Colab {self.colaborador_id} - R$ {self.valor}>"

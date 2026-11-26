@@ -262,6 +262,21 @@
       <div class="auth-desc">Informe suas credenciais para gerenciar a operação.</div>
 
       <!-- Alertas e Mensagens Flash -->
+      {% if bloqueado %}
+        <div class="custom-alert custom-alert-danger mb-3" id="lockoutBanner" style="border-left: 4px solid #ef4444; background: rgba(239, 68, 68, 0.15);">
+          <div class="d-flex align-items-start gap-2">
+            <i class="bi bi-shield-lock-fill text-danger fs-5 mt-1"></i>
+            <div>
+              <strong class="d-block text-danger">Bloqueio Preventivo Ativo</strong>
+              <span class="small text-light">Múltiplas tentativas incorretas consecutivas detectadas.</span>
+              <div class="mt-2 text-warning fw-bold fs-6">
+                <i class="bi bi-clock-history me-1"></i>Aguarde <span id="countdownTimer">{{ tempo_restante }}</span>s para tentar novamente
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
       {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
           {% for category, message in messages %}
@@ -280,15 +295,15 @@
         <div class="form-group-custom">
           <label for="inputEmail">E-mail corporativo</label>
           <div class="input-wrapper">
-            <input type="email" id="inputEmail" name="email" class="form-input-dark" placeholder="seu.email@ambev.com.br" required autofocus autocomplete="username">
+            <input type="email" id="inputEmail" name="email" class="form-input-dark" placeholder="seu.email@ambev.com.br" required autofocus autocomplete="username" {% if bloqueado %}disabled{% endif %}>
           </div>
         </div>
 
         <div class="form-group-custom">
           <label for="inputSenha">Senha</label>
           <div class="input-wrapper">
-            <input type="password" id="inputSenha" name="senha" class="form-input-dark input-pass" placeholder="••••••••" required autocomplete="current-password">
-            <button type="button" class="btn-toggle-eye" id="btnTogglePass" title="Exibir ou ocultar senha" tabindex="-1">
+            <input type="password" id="inputSenha" name="senha" class="form-input-dark input-pass" placeholder="••••••••" required autocomplete="current-password" {% if bloqueado %}disabled{% endif %}>
+            <button type="button" class="btn-toggle-eye" id="btnTogglePass" title="Exibir ou ocultar senha" tabindex="-1" {% if bloqueado %}disabled{% endif %}>
               <i class="bi bi-eye" id="iconEye"></i>
             </button>
           </div>
@@ -296,16 +311,16 @@
 
         <div class="d-flex align-items-center justify-content-between mb-4 mt-2">
           <div class="form-check d-flex align-items-center gap-2 m-0 p-0">
-            <input class="form-check-input ms-0 me-2" type="checkbox" name="lembrar" id="checkLembrar" checked>
+            <input class="form-check-input ms-0 me-2" type="checkbox" name="lembrar" id="checkLembrar" checked {% if bloqueado %}disabled{% endif %}>
             <label class="form-check-label" for="checkLembrar">
               Manter conectado neste computador
             </label>
           </div>
         </div>
 
-        <button type="submit" class="btn-submit-login">
-          <span>Entrar no sistema</span>
-          <i class="bi bi-arrow-right"></i>
+        <button type="submit" class="btn-submit-login" {% if bloqueado %}disabled style="opacity: 0.6; cursor: not-allowed;"{% endif %}>
+          <span>{% if bloqueado %}Acesso temporariamente bloqueado{% else %}Entrar no sistema{% endif %}</span>
+          <i class="bi {% if bloqueado %}bi-lock-fill{% else %}bi-arrow-right{% endif %}"></i>
         </button>
       </form>
     </div>
@@ -334,6 +349,22 @@
         }
       });
     }
+
+    // Contagem regressiva caso haja bloqueio por força bruta
+    {% if bloqueado and tempo_restante %}
+    let secondsLeft = parseInt("{{ tempo_restante }}", 10) || 0;
+    const timerElem = document.getElementById('countdownTimer');
+    if (secondsLeft > 0 && timerElem) {
+      const countdownInterval = setInterval(() => {
+        secondsLeft -= 1;
+        timerElem.textContent = Math.max(0, secondsLeft);
+        if (secondsLeft <= 0) {
+          clearInterval(countdownInterval);
+          window.location.reload();
+        }
+      }, 1000);
+    }
+    {% endif %}
   </script>
 </body>
 </html>

@@ -285,3 +285,135 @@ def test_validacao_colaborador_obrigatorio_para_aparelho_particular(client, app,
     with app.app_context():
         os_tentativa = OrdemAssistencia.query.filter_by(is_particular=True).first()
         assert os_tentativa is None, "Não deveria abrir OS particular sem colaborador definido!"
+
+
+def test_criar_vale_manual_sem_ordem_servico(client, app, colab_padrao):
+    """
+    Criação de Vale Manual (sem passar por OS):
+    - Permite lançamento direto de desconto para o colaborador
+    - ordem_id deve ser None
+    - status inicial 'pendente'
+    """
+    res = client.post('/vales/novo', data={
+        'colaborador_id': str(colab_padrao.id),
+        'dispositivo_id': 'nenhum',
+        'valor': '450,00',
+        'motivo': 'Perda de equipamento corporativo em campo',
+        'observacoes': 'Colaborador assinou ciência do débito',
+        'data_emissao': date.today().strftime('%Y-%m-%d')
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    with app.app_context():
+        vale = Vale.query.filter_by(colaborador_id=colab_padrao.id, ordem_id=None).first()
+        assert vale is not None
+        assert vale.valor == 450.0
+        assert vale.status == 'pendente'
+        assert vale.ordem_id is None
+        assert vale.saida_acessorio_id is None
+        assert vale.dispositivo_id is None
+        assert 'Perda de equipamento' in vale.motivo
+        assert vale.origem_formatada == 'Vale Manual / Avulso'
+
+
+def test_criar_vale_manual_perda_aparelho_com_baixa_no_dispositivo(client, app, colab_padrao, celular_padrao):
+    """
+    Colaborador perde um aparelho corporativo:
+    - TI emite um Vale manual com o valor do aparelho sem abrir OS.
+    - O aparelho vinculado deve ter seu status alterado para 'baixado' se marcada a opção.
+    """
+    assert celular_padrao.status == 'em_uso'
+
+    res = client.post('/vales/novo', data={
+        'colaborador_id': str(colab_padrao.id),
+        'dispositivo_id': str(celular_padrao.id),
+        'valor': '1.000,00',
+        'motivo': 'Perda/Extravio definitivo de Smartphone Samsung A15',
+        'observacoes': 'Extraviado durante atividade externa',
+        'dar_baixa': 'sim'
+    }, follow_redirects=True)
+    assert res.status_code == 200
+
+    with app.app_context():
+        vale = Vale.query.filter_by(colaborador_id=colab_padrao.id, dispositivo_id=celular_padrao.id).first()
+        assert vale is not None
+        assert vale.valor == 1000.0
+        assert vale.ordem_id is None
+        assert 'Perda/Extravio' in vale.motivo
+
+        # O aparelho corporativo perdido teve baixa automática no inventário!
+        disp = Dispositivo.query.get(celular_padrao.id)
+        assert disp.status == 'baixado'
+
+
+def test_validacao_campos_obrigatorios_vale_manual(client, app, colab_padrao):
+    """Não deve permitir criar vale sem colaborador, sem motivo ou com valor zerado/negativo."""
+    # 1. Sem colaborador
+    res1 = client.post('/vales/novo', data={
+        'colaborador_id': '',
+        'valor': '100,00',
+        'motivo': 'Teste sem colaborador'
+    }, follow_redirects=True)
+    assert res1.status_code == 200
+
+    # 2. Com valor zerado
+    res2 = client.post('/vales/novo', data={
+        'colaborador_id': str(colab_padrao.id),
+        'valor': '0,00',
+        'motivo': 'Teste valor zero'
+    }, follow_redirects=True)
+    assert res2.status_code == 200
+
+    # 3. Sem motivo
+    res3 = client.post('/vales/novo', data={
+        'colaborador_id': str(colab_padrao.id),
+        'valor': '150,00',
+        'motivo': '   '
+    }, follow_redirects=True)
+    assert res3.status_code == 200
+
+    with app.app_context():
+        assert Vale.query.count() == 0
+
+
+def test_rota_impressao_termo_vale(client, app, colab_padrao, celular_padrao):
+    """Rota /vales/<id>/imprimir deve exibir o documento formal de autorização de desconto (CLT)."""
+    with app.app_context():
+        v = Vale(
+            colaborador_id=colab_padrao.id,
+            dispositivo_id=celular_padrao.id,
+            valor=850.0,
+            motivo='Extravio de Aparelho',
+            observacoes='Acordo de desconto em 2 parcelas'
+        )
+        db.session.add(v)
+        db.session.commit()
+        vale_id = v.id
+
+    res = client.get(f'/vales/{vale_id}/imprimir')
+    assert res.status_code == 200
+    conteudo = res.get_data(as_text=True)
+    assert "Termo de Autorização de Desconto em Folha" in conteudo
+    assert colab_padrao.nome in conteudo
+    assert "850,00" in conteudo
+    assert "Artigo 462" in conteudo
+
+
+def test_excluir_vale_manual(client, app, colab_padrao):
+    """Exclusão de vale avulso remove o registro sem erros."""
+    with app.app_context():
+        v = Vale(
+            colaborador_id=colab_padrao.id,
+            valor=200.0,
+            motivo='Lançamento Indevido'
+        )
+        db.session.add(v)
+        db.session.commit()
+        vale_id = v.id
+
+    res = client.post(f'/vales/{vale_id}/excluir', follow_redirects=True)
+    assert res.status_code == 200
+
+    with app.app_context():
+        assert Vale.query.get(vale_id) is None
+
